@@ -477,10 +477,6 @@ export function WarehouseSwitchModal({
                   <span>Zona Waktu Resmi:</span>
                   <strong style={{ color: '#1D1D1F' }}>Asia/Jakarta (WIB, UTC+7)</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Supervisor QC Bertugas:</span>
-                  <strong style={{ color: '#1D1D1F' }}>Bpk. Rahmat Hidayat</strong>
-                </div>
               </div>
             </div>
 
