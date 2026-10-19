@@ -24,17 +24,22 @@ export default function CameraCaptureModal({
 }: CameraCaptureModalProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Reference for Android System Camera Chooser (tanpa capture kaku agar Android menampilkan dialog pilihan aplikasi kamera)
+  const fileInputChooserRef = useRef<HTMLInputElement | null>(null);
+
+  // Reference for Direct Rear Camera (pemicu langsung kamera belakang perangkat)
+  const fileInputDirectRearRef = useRef<HTMLInputElement | null>(null);
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string>('');
   const [capturedPreview, setCapturedPreview] = useState<CapturedPhotoData | null>(null);
   const [gpsStatus, setGpsStatus] = useState<string>('Mencari GPS...');
   const [gpsCoords, setGpsCoords] = useState<string>('');
-
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
 
-  // Start Camera with specific facing mode (rear environment vs front user)
+  // Start in-browser camera stream (WebRTC)
   async function startCamera(mode: 'environment' | 'user') {
     try {
       if (stream) {
@@ -56,14 +61,14 @@ export default function CameraCaptureModal({
         await videoRef.current.play();
       }
     } catch (err: any) {
-      console.error('Camera access error:', err);
+      console.warn('In-browser camera access info:', err?.message || err);
       setCameraError(
-        'Kamera browser tidak dapat diakses langsung. Anda dapat menggunakan kamera bawaan perangkat di bawah ini.'
+        'Kamera langsung di browser memerlukan izin atau perangkat ini mendukung pemilihan aplikasi kamera Android di bawah ini.'
       );
     }
   }
 
-  // 1. Start Camera and Request GPS on mount (FR-008, BR-05, BR-06)
+  // Request camera and GPS on mount (FR-008, BR-05, BR-06)
   useEffect(() => {
     startCamera(facingMode);
 
@@ -100,7 +105,7 @@ export default function CameraCaptureModal({
     startCamera(nextMode);
   }
 
-  // 2. Process Image, Apply Honest Watermark on Canvas, & Compress (NFR-01, FR-008, BR-05, BR-06)
+  // Process Image: Draw to Canvas, Stamp Honest Watermark, & Compress (NFR-01, FR-008, BR-05, BR-06)
   function processImageToCanvas(imageSource: CanvasImageSource, vWidth: number, vHeight: number) {
     const canvas = canvasRef.current || document.createElement('canvas');
 
@@ -203,32 +208,60 @@ export default function CameraCaptureModal({
     });
   }
 
+  // Snap from in-browser live viewfinder
   function handleSnap() {
     if (!videoRef.current) return;
-    processImageToCanvas(
-      videoRef.current,
-      videoRef.current.videoWidth || 1280,
-      videoRef.current.videoHeight || 720
-    );
+    setIsProcessing(true);
+    setTimeout(() => {
+      if (videoRef.current) {
+        processImageToCanvas(
+          videoRef.current,
+          videoRef.current.videoWidth || 1280,
+          videoRef.current.videoHeight || 720
+        );
+      }
+      setIsProcessing(false);
+    }, 50);
   }
 
+  // Handle photo returned from native camera input (Android chooser or direct camera)
   function handleNativeFileInput(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith('image/')) {
+      alert('File yang dipilih bukan gambar yang valid. Silakan gunakan kamera untuk mengambil foto.');
+      e.target.value = '';
+      return;
+    }
+
+    setIsProcessing(true);
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
         processImageToCanvas(img, img.naturalWidth, img.naturalHeight);
+        setIsProcessing(false);
+      };
+      img.onerror = () => {
+        setIsProcessing(false);
+        alert('Gagal memuat hasil foto. Silakan coba kembali.');
       };
       img.src = event.target?.result as string;
     };
+    reader.onerror = () => {
+      setIsProcessing(false);
+      alert('Gagal membaca data foto dari perangkat.');
+    };
     reader.readAsDataURL(file);
+    e.target.value = '';
   }
 
   function handleRetake() {
     setCapturedPreview(null);
+    if (!stream && !cameraError) {
+      startCamera(facingMode);
+    }
   }
 
   function handleAccept() {
@@ -259,11 +292,30 @@ export default function CameraCaptureModal({
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif'
+        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif'
       }}
     >
       {/* Hidden processing canvas */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+      {/* Input 1: Android System Intent Chooser (tanpa capture kaku agar Android menampilkan dialog pilihan aplikasi kamera) */}
+      <input
+        ref={fileInputChooserRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleNativeFileInput}
+      />
+
+      {/* Input 2: Direct Rear Camera pemicu cepat */}
+      <input
+        ref={fileInputDirectRearRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={handleNativeFileInput}
+      />
 
       {/* Top Bar with Apple HIG Translucent HUD */}
       <div
@@ -277,7 +329,7 @@ export default function CameraCaptureModal({
           alignItems: 'center',
           justifyContent: 'space-between',
           zIndex: 20,
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 100%)'
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)'
         }}
       >
         <button
@@ -358,73 +410,140 @@ export default function CameraCaptureModal({
           backgroundColor: '#000000'
         }}
       >
-        {cameraError ? (
+        {isProcessing ? (
           <div
             style={{
-              padding: '24px',
-              backgroundColor: '#FFFFFF',
-              borderRadius: '24px',
-              margin: '20px',
-              maxWidth: '360px',
-              textAlign: 'center',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
+              position: 'absolute',
+              zIndex: 50,
+              backgroundColor: 'rgba(0, 0, 0, 0.82)',
+              backdropFilter: 'blur(16px)',
+              padding: '24px 32px',
+              borderRadius: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px',
+              color: '#FFFFFF'
             }}
           >
             <div
               style={{
-                width: '48px',
-                height: '48px',
+                width: '32px',
+                height: '32px',
+                border: '3px solid rgba(255,255,255,0.2)',
+                borderTopColor: '#0071E3',
                 borderRadius: '50%',
-                backgroundColor: '#FEECEB',
-                color: '#FF3B30',
+                animation: 'spin 0.7s linear infinite'
+              }}
+            />
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>Membubuhkan Watermark & Mengompresi...</span>
+          </div>
+        ) : null}
+
+        {cameraError ? (
+          <div
+            style={{
+              padding: '28px 24px',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '24px',
+              margin: '20px',
+              maxWidth: '380px',
+              textAlign: 'center',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+              zIndex: 10
+            }}
+          >
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '50%',
+                backgroundColor: '#EFF6FF',
+                color: '#0071E3',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '0 auto 12px auto'
+                margin: '0 auto 14px auto'
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
               </svg>
             </div>
-            <p style={{ color: '#1D1D1F', fontSize: '14px', lineHeight: 1.5, margin: '0 0 16px 0', fontWeight: 500 }}>
-              {cameraError}
+            <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#1D1D1F', margin: '0 0 6px 0' }}>
+              Pilih Kamera Perangkat
+            </h3>
+            <p style={{ color: '#64748B', fontSize: '13px', lineHeight: 1.5, margin: '0 0 20px 0' }}>
+              Pilih aplikasi kamera yang terpasang di HP Anda untuk mengambil foto bukti termometer:
             </p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Opsi 1: Android System Chooser */}
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => fileInputChooserRef.current?.click()}
                 style={{
                   backgroundColor: '#0071E3',
                   color: '#FFFFFF',
                   border: 'none',
-                  borderRadius: '12px',
-                  padding: '10px 18px',
+                  borderRadius: '14px',
+                  height: '46px',
                   fontSize: '14px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(0, 113, 227, 0.3)'
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(0, 113, 227, 0.3)'
                 }}
               >
-                Buka Kamera Perangkat ↗
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+                <span>Pilih Aplikasi Kamera HP ↗</span>
               </button>
+
+              {/* Opsi 2: Kamera Belakang Langsung */}
               <button
                 type="button"
-                onClick={handleCloseModal}
+                onClick={() => fileInputDirectRearRef.current?.click()}
                 style={{
-                  backgroundColor: '#F1F5F9',
+                  backgroundColor: '#F8FAFC',
                   color: '#1D1D1F',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '10px 18px',
-                  fontSize: '14px',
+                  border: '1.5px solid #E2E8F0',
+                  borderRadius: '14px',
+                  height: '44px',
+                  fontSize: '13px',
                   fontWeight: 600,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
                 }}
               >
-                Batal
+                <span>Kamera Belakang Cepat</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => startCamera(facingMode)}
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#0071E3',
+                  border: 'none',
+                  height: '36px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  marginTop: '4px'
+                }}
+              >
+                Coba Nyalakan Kamera Web Kembali
               </button>
             </div>
           </div>
@@ -439,7 +558,7 @@ export default function CameraCaptureModal({
                 objectFit: 'contain'
               }}
             />
-            {/* File size indicator badge */}
+            {/* File size & watermark badge */}
             <div
               style={{
                 position: 'absolute',
@@ -450,123 +569,65 @@ export default function CameraCaptureModal({
                 fontSize: '12px',
                 fontWeight: 600,
                 padding: '4px 12px',
-                borderRadius: '20px',
-                border: '1px solid rgba(52, 211, 153, 0.4)',
-                display: 'inline-flex',
+                borderRadius: '16px',
+                border: '1px solid rgba(52, 211, 153, 0.3)',
+                display: 'flex',
                 alignItems: 'center',
                 gap: '6px'
               }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span>Kompresi {capturedPreview.sizeKb} KB (&lt; 350 KB)</span>
+              <span>✓ Watermark Siap</span>
+              <span>•</span>
+              <span>{capturedPreview.sizeKb} KB</span>
             </div>
           </div>
         ) : (
-          <>
-            <video
-              ref={videoRef}
-              playsInline
-              autoPlay
-              muted
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover'
-              }}
-            />
-
-            {/* Rule-of-Thirds Grid Overlay */}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                pointerEvents: 'none',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr',
-                gridTemplateRows: '1fr 1fr 1fr',
-                opacity: 0.25
-              }}
-            >
-              <div style={{ borderRight: '1px solid #FFFFFF', borderBottom: '1px solid #FFFFFF' }} />
-              <div style={{ borderRight: '1px solid #FFFFFF', borderBottom: '1px solid #FFFFFF' }} />
-              <div style={{ borderBottom: '1px solid #FFFFFF' }} />
-              <div style={{ borderRight: '1px solid #FFFFFF', borderBottom: '1px solid #FFFFFF' }} />
-              <div style={{ borderRight: '1px solid #FFFFFF', borderBottom: '1px solid #FFFFFF' }} />
-              <div style={{ borderBottom: '1px solid #FFFFFF' }} />
-              <div style={{ borderRight: '1px solid #FFFFFF' }} />
-              <div style={{ borderRight: '1px solid #FFFFFF' }} />
-              <div />
-            </div>
-
-            {/* Pulsed Focus Box */}
-            <div
-              style={{
-                position: 'absolute',
-                width: '140px',
-                height: '140px',
-                border: '2px solid rgba(251, 191, 36, 0.85)',
-                borderRadius: '16px',
-                pointerEvents: 'none',
-                boxShadow: '0 0 16px rgba(251, 191, 36, 0.4)',
-                animation: 'applePulse 2s infinite ease-in-out'
-              }}
-            />
-
-            {/* Top Prompt Pill */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '72px',
-                backgroundColor: 'rgba(0, 0, 0, 0.65)',
-                backdropFilter: 'blur(10px)',
-                color: '#FFFFFF',
-                fontSize: '12px',
-                fontWeight: 500,
-                padding: '6px 14px',
-                borderRadius: '20px',
-                pointerEvents: 'none'
-              }}
-            >
-              Arahkan ke layar termometer digital
-            </div>
-          </>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+          />
         )}
       </div>
 
-      {/* Bottom Controls Area (Apple Thumb Deck) */}
+      {/* Bottom Action HUD Bar */}
       <div
         style={{
-          padding: '20px 24px calc(24px + env(safe-area-inset-bottom, 0px)) 24px',
-          background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%)',
+          padding: '24px 20px 32px 20px',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '110px',
+          gap: '16px',
+          background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%)',
           zIndex: 20
         }}
       >
         {capturedPreview ? (
-          <div style={{ display: 'flex', gap: '14px', width: '100%', maxWidth: '380px' }}>
+          <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '340px' }}>
             <button
               onClick={handleRetake}
               type="button"
               style={{
                 flex: 1,
                 minHeight: '50px',
-                backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                color: '#FFFFFF',
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(16px)',
                 border: '1px solid rgba(255, 255, 255, 0.3)',
+                color: '#FFFFFF',
                 borderRadius: '25px',
                 fontSize: '14px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                backdropFilter: 'blur(10px)',
                 transition: 'all 0.15s ease'
               }}
             >
-              Ulangi Foto
+              ↺ Ulangi Foto
             </button>
             <button
               onClick={handleAccept}
@@ -589,110 +650,157 @@ export default function CameraCaptureModal({
             </button>
           </div>
         ) : !cameraError ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: '320px', position: 'relative' }}>
-            {/* Native Camera Trigger button */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              type="button"
-              title="Buka Kamera Perangkat Bawaan"
-              style={{
-                position: 'absolute',
-                left: 0,
-                width: '44px',
-                height: '44px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(10px)',
-                border: 'none',
-                color: '#FFFFFF',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'transform 0.1s ease'
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-                <circle cx="12" cy="13" r="3"/>
-              </svg>
-            </button>
-
-            {/* Apple Dual-Circle Shutter Button (76px) */}
-            <button
-              onClick={handleSnap}
-              type="button"
-              aria-label="Jepret foto"
-              style={{
-                width: '76px',
-                height: '76px',
-                borderRadius: '50%',
-                backgroundColor: 'transparent',
-                border: '4px solid #FFFFFF',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0,
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)'
-              }}
-            >
-              <div
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', width: '100%', maxWidth: '340px' }}>
+            {/* Quick Mode Pill: Chooser Trigger */}
+            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              <button
+                type="button"
+                onClick={() => fileInputChooserRef.current?.click()}
                 style={{
-                  width: '62px',
-                  height: '62px',
+                  flex: 1,
+                  height: '38px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.18)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  borderRadius: '19px',
+                  color: '#FFFFFF',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+                <span>Pilih Aplikasi Kamera HP</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputDirectRearRef.current?.click()}
+                title="Buka Kamera Belakang Langsung"
+                style={{
+                  height: '38px',
+                  padding: '0 12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.18)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  borderRadius: '19px',
+                  color: '#FFFFFF',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span>Kamera Belakang</span>
+              </button>
+            </div>
+
+            {/* Shutter Bar with Center Shutter and Flip Camera */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative' }}>
+              {/* Native App Chooser Trigger Icon */}
+              <button
+                onClick={() => fileInputChooserRef.current?.click()}
+                type="button"
+                title="Pilih Aplikasi Kamera Sistem"
+                aria-label="Pilih Aplikasi Kamera Sistem"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  width: '46px',
+                  height: '46px',
                   borderRadius: '50%',
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   transition: 'transform 0.1s ease'
                 }}
-              />
-            </button>
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
+              </button>
 
-            {/* Flip / Switch Camera Button (Kamera Depan / Belakang) */}
-            <button
-              onClick={handleToggleCamera}
-              type="button"
-              title={facingMode === 'environment' ? 'Ganti ke Kamera Depan' : 'Ganti ke Kamera Belakang'}
-              aria-label="Ganti Kamera"
-              style={{
-                position: 'absolute',
-                right: 0,
-                width: '44px',
-                height: '44px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(10px)',
-                border: 'none',
-                color: '#FFFFFF',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'transform 0.1s ease'
-              }}
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-              </svg>
-            </button>
+              {/* Apple Dual-Circle Shutter Button (76px) */}
+              <button
+                onClick={handleSnap}
+                type="button"
+                aria-label="Jepret foto langsung"
+                style={{
+                  width: '76px',
+                  height: '76px',
+                  borderRadius: '50%',
+                  backgroundColor: 'transparent',
+                  border: '4px solid #FFFFFF',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)'
+                }}
+              >
+                <div
+                  style={{
+                    width: '62px',
+                    height: '62px',
+                    borderRadius: '50%',
+                    backgroundColor: '#FFFFFF',
+                    transition: 'transform 0.1s ease'
+                  }}
+                />
+              </button>
+
+              {/* Flip / Switch Camera Button (Kamera Depan / Belakang Web) */}
+              <button
+                onClick={handleToggleCamera}
+                type="button"
+                title={facingMode === 'environment' ? 'Ganti ke Kamera Depan' : 'Ganti ke Kamera Belakang'}
+                aria-label="Ganti Kamera"
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'transform 0.1s ease'
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+              </button>
+            </div>
           </div>
         ) : null}
       </div>
 
-      {/* Native device camera input fallback locked to environment camera (BR-05) */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        style={{ display: 'none' }}
-        onChange={handleNativeFileInput}
-      />
-
       <style jsx>{`
-        @keyframes applePulse {
-          0%, 100% { transform: scale(1); opacity: 0.8; }
-          50% { transform: scale(1.04); opacity: 1; }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>
