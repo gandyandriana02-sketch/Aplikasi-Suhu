@@ -36,6 +36,9 @@ export default function CameraCaptureModal({
   const [capturedPreview, setCapturedPreview] = useState<CapturedPhotoData | null>(null);
   const [gpsStatus, setGpsStatus] = useState<string>('Mencari GPS...');
   const [gpsCoords, setGpsCoords] = useState<string>('');
+  const [gpsAddress, setGpsAddress] = useState<string>('');
+  const gpsCoordsRef = useRef<string>('');
+  const gpsAddressRef = useRef<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
 
@@ -75,11 +78,48 @@ export default function CameraCaptureModal({
     // Request GPS location in parallel (optional per BR-06)
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const lat = position.coords.latitude.toFixed(6);
           const lng = position.coords.longitude.toFixed(6);
-          setGpsCoords(`${lat}, ${lng}`);
-          setGpsStatus(`GPS: ${lat}, ${lng}`);
+          const coordsStr = `${lat}, ${lng}`;
+          setGpsCoords(coordsStr);
+          gpsCoordsRef.current = coordsStr;
+          setGpsStatus(`GPS: ${coordsStr}`);
+
+          // Fetch reverse geocoded address client-side
+          try {
+            const res = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`
+            );
+            if (res.ok) {
+              const data = await res.json();
+              const road = data.localityInfo?.informative?.find(
+                (i: any) => i.description === 'road' || i.name?.toLowerCase().includes('jl')
+              )?.name;
+              const subDistrict = data.localityInfo?.administrative?.find((a: any) => a.order === 4)?.name;
+              const district =
+                data.localityInfo?.administrative?.find((a: any) => a.order === 3)?.name ||
+                data.principalSubdivisionDistrict ||
+                data.city;
+              const province = data.principalSubdivision;
+              const postal = data.postcode;
+
+              const addrParts = [
+                road,
+                data.locality || subDistrict,
+                district,
+                province ? (postal ? `${province} ${postal}` : province) : postal
+              ].filter(Boolean);
+
+              if (addrParts.length > 0) {
+                const fullAddr = addrParts.join(', ');
+                setGpsAddress(fullAddr);
+                gpsAddressRef.current = fullAddr;
+              }
+            }
+          } catch {
+            // Ignore if offline
+          }
         },
         (error) => {
           console.warn('Geolocation warning:', error.message);
@@ -105,7 +145,61 @@ export default function CameraCaptureModal({
     startCamera(nextMode);
   }
 
-  // Process Image: Draw to Canvas, Stamp Honest Watermark, & Compress (NFR-01, FR-008, BR-05, BR-06)
+  function drawRoundedRect(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number
+  ) {
+    if (typeof ctx.roundRect === 'function') {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function wrapCanvasText(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number
+  ): string[] {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = ctx.measureText(testLine).width;
+      if (testWidth > maxWidth && i > 0) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    return lines;
+  }
+
+  // Process Image: Draw to Canvas, Stamp Authentic Timemark / GPS Camera Watermark, & Compress (NFR-01, FR-008, BR-05, BR-06)
   function processImageToCanvas(imageSource: CanvasImageSource, vWidth: number, vHeight: number) {
     const canvas = canvasRef.current || document.createElement('canvas');
 
@@ -129,65 +223,188 @@ export default function CameraCaptureModal({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Draw camera image
+    // 1. Draw base photo
     ctx.drawImage(imageSource, 0, 0, targetWidth, targetHeight);
 
-    // Prepare Honest Watermark details (WIB Asia/Jakarta, location, session officer, genuine GPS)
+    // 2. Fetch authoritative time (Asia/Jakarta, WIB) per NFR-03 & PRD BR-05
     const now = new Date();
-    const dateFormatted = new Intl.DateTimeFormat('id-ID', {
+
+    const timeFormatted = new Intl.DateTimeFormat('id-ID', {
       timeZone: 'Asia/Jakarta',
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: false
+    })
+      .format(now)
+      .replace('.', ':');
+
+    const dateFormatted = new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
     }).format(now);
 
-    const lines = [
-      `Waktu: ${dateFormatted} WIB`,
-      `Lokasi: ${locationName}`,
-      `Petugas: ${petugasName}`
-    ];
-    if (gpsCoords) {
-      lines.push(`GPS: ${gpsCoords}`);
+    const dayFormatted = new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      weekday: 'long'
+    }).format(now);
+
+    // 3. Resolve active GPS coordinates and geocoded address
+    const activeCoords = gpsCoordsRef.current || gpsCoords;
+    const activeAddress = gpsAddressRef.current || gpsAddress;
+
+    let formattedCoords = 'GPS Tidak Tersedia';
+    if (activeCoords) {
+      const parts = activeCoords.split(',').map((s) => s.trim());
+      if (parts.length === 2) {
+        const latNum = parseFloat(parts[0]);
+        const lngNum = parseFloat(parts[1]);
+        if (!isNaN(latNum) && !isNaN(lngNum)) {
+          const latDir = latNum < 0 ? '°S' : '°N';
+          const lngDir = lngNum < 0 ? '°W' : '°E';
+          formattedCoords = `${Math.abs(latNum).toFixed(6)}${latDir}, ${Math.abs(lngNum).toFixed(6)}${lngDir}`;
+        } else {
+          formattedCoords = activeCoords;
+        }
+      } else {
+        formattedCoords = activeCoords;
+      }
+    }
+    const pillText = `Koordinat: ${formattedCoords}`;
+
+    // 4. Calculate layout scales matching Timemark / GPS Camera aesthetic
+    const baseScale = Math.max(0.65, Math.min(1.35, targetWidth / 1000));
+    const padX = Math.round(28 * baseScale);
+    const padBottom = Math.round(26 * baseScale);
+    const itemGap = Math.round(10 * baseScale);
+
+    const clockFontSize = Math.round(58 * baseScale);
+    const dateFontSize = Math.round(18 * baseScale);
+    const dayFontSize = Math.round(16 * baseScale);
+    const textFontSize = Math.round(15 * baseScale);
+    const textLineHeight = Math.round(21 * baseScale);
+    const pillFontSize = Math.round(14 * baseScale);
+
+    const clockFont = `700 ${clockFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, BlinkMacSystemFont, sans-serif`;
+    const dateFont = `500 ${dateFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    const dayFont = `500 ${dayFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    const bodyFont = `400 ${textFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    const pillFont = `500 ${pillFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace`;
+
+    // Measure clock width
+    ctx.font = clockFont;
+    const clockWidth = ctx.measureText(timeFormatted).width;
+
+    // Wrap address lines and include location & officer info
+    const maxTextWidth = Math.min(targetWidth - padX * 2, Math.round(720 * baseScale));
+    ctx.font = bodyFont;
+
+    let addressLines: string[] = [];
+    if (activeAddress) {
+      addressLines = wrapCanvasText(ctx, activeAddress, maxTextWidth);
+      addressLines.push(`Lokasi: ${locationName} • Petugas: ${petugasName}`);
+    } else {
+      addressLines = [
+        `Warehouse Temperature Report • ${locationName}`,
+        `Petugas: ${petugasName}`
+      ];
     }
 
-    // Dynamic watermark sizing based on shorter dimension
-    const shorterSide = Math.min(targetWidth, targetHeight);
-    const fontSize = Math.max(14, Math.round(shorterSide * 0.026));
-    const lineHeight = fontSize * 1.4;
-    const padding = Math.round(fontSize * 0.8);
+    // Measure Coordinates pill
+    ctx.font = pillFont;
+    const pillTextWidth = ctx.measureText(pillText).width;
+    const pillPaddingX = Math.round(12 * baseScale);
+    const pillHeight = Math.round(28 * baseScale);
+    const pillWidth = pillTextWidth + pillPaddingX * 2;
 
-    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif`;
+    // Calculate total height of the watermark block
+    const totalBlockHeight =
+      clockFontSize + itemGap + (addressLines.length * textLineHeight) + itemGap + pillHeight;
 
-    // Measure maximum line width
-    let maxTextWidth = 0;
-    lines.forEach((line) => {
-      const w = ctx.measureText(line).width;
-      if (w > maxTextWidth) maxTextWidth = w;
-    });
+    const startY = targetHeight - padBottom - totalBlockHeight;
 
-    const boxWidth = maxTextWidth + padding * 2;
-    const boxHeight = lines.length * lineHeight + padding * 2;
-    const boxX = padding;
-    const boxY = targetHeight - boxHeight - padding;
+    // 5. Draw photographic subtle dark vignette at the bottom for crisp contrast
+    const vignetteHeight = Math.min(
+      targetHeight,
+      Math.round(totalBlockHeight + padBottom * 2 + 45 * baseScale)
+    );
+    const vignette = ctx.createLinearGradient(0, targetHeight - vignetteHeight, 0, targetHeight);
+    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignette.addColorStop(0.28, 'rgba(0, 0, 0, 0.40)');
+    vignette.addColorStop(0.70, 'rgba(0, 0, 0, 0.70)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.88)');
 
-    // Translucent black pill card for watermark
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
-    ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 10);
-    ctx.fill();
+    ctx.save();
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, targetHeight - vignetteHeight, targetWidth, vignetteHeight);
+    ctx.restore();
 
-    // Render text lines
+    // 6. Draw Row 1: Large bold digital clock + Date & Day beside clock
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowBlur = Math.round(4 * baseScale);
+    ctx.shadowOffsetX = Math.round(1 * baseScale);
+    ctx.shadowOffsetY = Math.round(1 * baseScale);
+
+    // Clock
+    ctx.font = clockFont;
     ctx.fillStyle = '#FFFFFF';
     ctx.textBaseline = 'top';
-    lines.forEach((line, idx) => {
-      ctx.fillText(line, boxX + padding, boxY + padding + idx * lineHeight);
-    });
+    ctx.fillText(timeFormatted, padX, startY);
 
-    // Compress to JPEG with quality 0.80 (target < 350 KB, NFR-01)
+    // Date & Day to the right
+    const dateGap = Math.round(14 * baseScale);
+    const dateX = padX + clockWidth + dateGap;
+
+    ctx.font = dateFont;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(dateFormatted, dateX, startY + Math.round(4 * baseScale));
+
+    ctx.font = dayFont;
+    ctx.fillStyle = '#E2E8F0';
+    ctx.fillText(
+      dayFormatted,
+      dateX,
+      startY + Math.round(4 * baseScale) + Math.round(23 * baseScale)
+    );
+    ctx.restore();
+
+    // 7. Draw Row 2: Wrapped address & Warehouse Location / Officer line
+    const addressStartY = startY + clockFontSize + itemGap;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowBlur = Math.round(3 * baseScale);
+    ctx.shadowOffsetX = Math.round(1 * baseScale);
+    ctx.shadowOffsetY = Math.round(1 * baseScale);
+    ctx.font = bodyFont;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textBaseline = 'top';
+
+    addressLines.forEach((line, index) => {
+      ctx.fillText(line, padX, addressStartY + index * textLineHeight);
+    });
+    ctx.restore();
+
+    // 8. Draw Row 3: Translucent pill container with GPS coordinates
+    const pillY = addressStartY + (addressLines.length * textLineHeight) + itemGap;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(40, 40, 44, 0.78)';
+    drawRoundedRect(ctx, padX, pillY, pillWidth, pillHeight, Math.round(6 * baseScale));
+
+    ctx.font = pillFont;
+    ctx.fillStyle = '#F8FAFC';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = Math.round(2 * baseScale);
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    ctx.fillText(pillText, padX + pillPaddingX, pillY + pillHeight / 2);
+    ctx.restore();
+
+    // 9. Compress to JPEG with quality 0.80 (target < 350 KB, NFR-01)
     const base64Jpeg = canvas.toDataURL('image/jpeg', 0.8);
 
     // Approximate size in KB
@@ -204,7 +421,7 @@ export default function CameraCaptureModal({
       base64: base64Jpeg,
       sizeKb,
       capturedAt: capturedAtISO,
-      gpsCoordinates: gpsCoords
+      gpsCoordinates: activeCoords
     });
   }
 
