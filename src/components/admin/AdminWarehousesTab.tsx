@@ -168,6 +168,35 @@ export function AdminWarehousesTab({ onSuccess, onError, onWarehouseChange }: Ad
     }
   }
 
+  async function handleDeleteWarehouse(wh: WarehouseItem) {
+    if (
+      !confirm(
+        `Hapus permanen warehouse "${wh.warehouse_code} — ${wh.warehouse_name}"?\n\nPerhatian: Warehouse yang sudah memiliki riwayat transaksi suhu tidak dapat dihapus (BR-08 / BR-11) dan harus dinonaktifkan.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/warehouses', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          warehouse_id: wh.warehouse_id
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus warehouse.');
+
+      onSuccess(`Warehouse ${wh.warehouse_code} berhasil dihapus.`);
+      await loadWarehouses();
+      onWarehouseChange?.();
+    } catch (err: any) {
+      onError(err.message || 'Gagal menghapus warehouse.');
+    }
+  }
+
   return (
     <section aria-label="Manajemen Master Warehouse" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Tab Header Action Bar */}
@@ -272,6 +301,14 @@ export function AdminWarehousesTab({ onSuccess, onError, onWarehouseChange }: Ad
                         className={`btn-tbl-action ${wh.is_active ? 'danger' : 'primary'}`}
                       >
                         {wh.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteWarehouse(wh)}
+                        className="btn-tbl-action danger"
+                        title="Hapus permanen (hanya jika belum memiliki transaksi suhu)"
+                      >
+                        Hapus
                       </button>
                     </div>
                   </td>

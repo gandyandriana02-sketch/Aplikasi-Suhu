@@ -578,6 +578,52 @@ function AdminPageContent() {
     }
   }
 
+  async function handleDeleteLocation(loc: LocationData) {
+    if (!confirm(`Hapus titik lokasi "${loc.location_name}"?\n\nPerhatian: Titik lokasi yang sudah memiliki riwayat transaksi suhu tidak dapat dihapus (BR-08) dan harus dinonaktifkan.`)) return;
+    setMasterSaving(true);
+    try {
+      const res = await fetch('/api/admin/master', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'LOCATION',
+          id: loc.location_id
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus titik lokasi');
+      flashSuccess(`Titik lokasi "${loc.location_name}" berhasil dihapus.`);
+      await loadMasterForWh(selectedMasterWhId);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setMasterSaving(false);
+    }
+  }
+
+  async function handleDeletePeriod(p: PeriodData) {
+    if (!confirm(`Hapus jadwal shift "${p.period_label}"?\n\nPerhatian: Jadwal shift yang sudah memiliki riwayat transaksi suhu tidak dapat dihapus (BR-08) dan harus dinonaktifkan.`)) return;
+    setMasterSaving(true);
+    try {
+      const res = await fetch('/api/admin/master', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'PERIOD',
+          id: p.period_id
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus jadwal shift');
+      flashSuccess(`Jadwal shift "${p.period_label}" berhasil dihapus.`);
+      await loadMasterForWh(selectedMasterWhId);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setMasterSaving(false);
+    }
+  }
+
   // =========================================================================
   // SETTINGS HANDLERS
   // =========================================================================
@@ -982,9 +1028,9 @@ function AdminPageContent() {
                           <thead>
                             <tr>
                               <th>Titik Lokasi</th>
-                              <th style={{ textAlign: 'center', width: '80px' }}>Urutan</th>
+                              <th style={{ textAlign: 'center', width: '70px' }}>Urutan</th>
                               <th style={{ textAlign: 'center', width: '90px' }}>Status</th>
-                              <th style={{ textAlign: 'right', width: '130px' }}>Aksi</th>
+                              <th style={{ textAlign: 'right', width: '180px' }}>Aksi</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1027,6 +1073,14 @@ function AdminPageContent() {
                                         className={`btn-tbl-action ${loc.is_active ? 'danger' : 'primary'}`}
                                       >
                                         {loc.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteLocation(loc)}
+                                        className="btn-tbl-action danger"
+                                        title="Hapus permanen (hanya jika belum memiliki transaksi suhu)"
+                                      >
+                                        Hapus
                                       </button>
                                     </div>
                                   </td>
@@ -1078,9 +1132,9 @@ function AdminPageContent() {
                           <thead>
                             <tr>
                               <th>Label Shift</th>
-                              <th style={{ textAlign: 'center', width: '80px' }}>Urutan</th>
+                              <th style={{ textAlign: 'center', width: '70px' }}>Urutan</th>
                               <th style={{ textAlign: 'center', width: '90px' }}>Status</th>
-                              <th style={{ textAlign: 'right', width: '130px' }}>Aksi</th>
+                              <th style={{ textAlign: 'right', width: '180px' }}>Aksi</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1123,6 +1177,14 @@ function AdminPageContent() {
                                         className={`btn-tbl-action ${p.is_active ? 'danger' : 'primary'}`}
                                       >
                                         {p.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeletePeriod(p)}
+                                        className="btn-tbl-action danger"
+                                        title="Hapus permanen (hanya jika belum memiliki transaksi suhu)"
+                                      >
+                                        Hapus
                                       </button>
                                     </div>
                                   </td>
@@ -2083,7 +2145,7 @@ function AdminPageContent() {
                   <label className="form-label">Warehouse Default</label>
                   <select
                     value={editDefaultWhId}
-                    onChange={(e) => setNewDefaultWhId(e.target.value)}
+                    onChange={(e) => setEditDefaultWhId(e.target.value)}
                     className="apple-select-input"
                   >
                     {warehousesList.map((w) => (

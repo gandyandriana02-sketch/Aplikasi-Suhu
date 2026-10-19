@@ -71,7 +71,8 @@ function applyRow(settings: WarehouseSettings, key: string, val: any) {
  */
 export function parseWarehouseSettings(
   rows: any[][],
-  warehouseId?: string
+  warehouseId?: string,
+  warehouseListRows?: any[][]
 ): WarehouseSettings {
   const result: WarehouseSettings = { ...DEFAULT_SETTINGS };
 
@@ -88,15 +89,32 @@ export function parseWarehouseSettings(
   // 2. Process warehouse-specific rows (strict overrides)
   if (warehouseId && warehouseId !== 'GLOBAL') {
     const cleanWh = warehouseId.trim().toUpperCase();
+
+    // If master warehouse list is passed, resolve canonical ID
+    let canonicalWh = cleanWh;
+    if (warehouseListRows && warehouseListRows.length > 0) {
+      const matchWh = warehouseListRows.find(w => 
+        (w[0] && String(w[0]).trim().toUpperCase() === cleanWh) || 
+        (w[1] && String(w[1]).trim().toUpperCase() === cleanWh)
+      );
+      if (matchWh && matchWh[0]) {
+        canonicalWh = String(matchWh[0]).trim().toUpperCase();
+      }
+    }
+
     const whRows = rows.filter(r => {
       if (!r[0]) return false;
       const rowWh = String(r[0]).trim().toUpperCase();
-      if (rowWh === cleanWh) return true;
-      // Also match WH-001 <-> CK1, WH-002 <-> CK2
-      if ((cleanWh === 'WH-001' && rowWh === 'CK1') || (cleanWh === 'CK1' && rowWh === 'WH-001')) return true;
-      if ((cleanWh === 'WH-002' && rowWh === 'CK2') || (cleanWh === 'CK2' && rowWh === 'WH-002')) return true;
+      if (rowWh === cleanWh || rowWh === canonicalWh) return true;
+
+      // Dynamic prefix matching (e.g. CK01 <-> WH-001, CK03 <-> WH-003, CK2 <-> WH-002)
+      const numClean = cleanWh.match(/^(?:WH|CK)-?0*(\d+)$/)?.[1];
+      const numRow = rowWh.match(/^(?:WH|CK)-?0*(\d+)$/)?.[1];
+      if (numClean && numRow && numClean === numRow) return true;
+
       return false;
     });
+
     for (const r of whRows) {
       applyRow(result, r[1], r[2]);
     }

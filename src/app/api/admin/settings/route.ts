@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
-import { getSheetValues, updateSheetValues, appendSheetValues, clearSheetCache } from '@/lib/google-sheets';
+import { getSheetValues, updateSheetValues, appendSheetValues, clearSheetCache, clearSheetRange } from '@/lib/google-sheets';
 import { formatJakartaISO } from '@/lib/time';
 import { recordAuditLog } from '@/lib/audit';
 import { parseWarehouseSettings } from '@/lib/settings';
@@ -87,10 +87,13 @@ export async function PUT(req: NextRequest) {
 
     const updates: { key: string; oldValue: any; newValue: any }[] = [];
 
+    // Work with an in-memory mutable rows array
+    const mutableRows = rows.map(r => [...r]);
+
     for (const key of allowedKeys) {
       if (body[key] !== undefined) {
         const whScope = (key === 'app_name' || key === 'app_icon') ? 'GLOBAL' : targetWhId;
-        const rowIndex = rows.findIndex(r => 
+        const rowIndex = mutableRows.findIndex(r => 
           (whScope === 'GLOBAL' ? r[0] === 'GLOBAL' : resolveCanonicalWarehouseId(r[0], whRows) === targetWhId) && r[1] === key
         );
 
@@ -108,19 +111,15 @@ export async function PUT(req: NextRequest) {
         }
 
         if (rowIndex !== -1) {
-          const sheetRowNum = rowIndex + 2;
-          const oldVal = rows[rowIndex][2];
-
+          const oldVal = mutableRows[rowIndex][2];
           if (oldVal !== newValString) {
-            await updateSheetValues(`SETTINGS!C${sheetRowNum}`, [[newValString]], 'RAW');
-            await updateSheetValues(`SETTINGS!E${sheetRowNum}:F${sheetRowNum}`, [[session.username, nowISO]], 'RAW');
-            rows[rowIndex][2] = newValString;
-            rows[rowIndex][4] = session.username;
-            rows[rowIndex][5] = nowISO;
+            mutableRows[rowIndex][0] = whScope; // Ensure canonical ID
+            mutableRows[rowIndex][2] = newValString;
+            mutableRows[rowIndex][4] = session.username;
+            mutableRows[rowIndex][5] = nowISO;
             updates.push({ key, oldValue: oldVal, newValue: newValString });
           }
         } else {
-          // If setting row doesn't exist for this warehouse yet, append it
           const newRow = [
             whScope,
             key,
@@ -129,16 +128,39 @@ export async function PUT(req: NextRequest) {
             session.username,
             nowISO
           ];
-          await appendSheetValues('SETTINGS!A:F', [newRow], 'RAW');
-          rows.push(newRow);
+          mutableRows.push(newRow);
           updates.push({ key, oldValue: null, newValue: newValString });
         }
       }
     }
 
-    clearSheetCache();
-
     if (updates.length > 0) {
+      // Deduplicate rows cleanly before writing
+      const seen = new Set<string>();
+      const cleanRows: any[][] = [];
+      for (const r of mutableRows) {
+        if (!r[0] || !r[1]) continue;
+        const scope = r[0] === 'GLOBAL' ? 'GLOBAL' : resolveCanonicalWarehouseId(r[0], whRows);
+        const uniqueKey = `${scope}:${r[1]}`;
+        if (!seen.has(uniqueKey)) {
+          seen.add(uniqueKey);
+          cleanRows.push([
+            scope,
+            r[1],
+            r[2] || '',
+            r[3] || `Pengaturan ${r[1]} untuk ${scope}`,
+            r[4] || session.username,
+            r[5] || nowISO
+          ]);
+        }
+      }
+
+      await clearSheetRange('SETTINGS!A2:F');
+      if (cleanRows.length > 0) {
+        await updateSheetValues(`SETTINGS!A2:F${cleanRows.length + 1}`, cleanRows, 'RAW');
+      }
+      clearSheetCache();
+
       await recordAuditLog({
         actor_user_id: session.user_id,
         actor_username: session.username,

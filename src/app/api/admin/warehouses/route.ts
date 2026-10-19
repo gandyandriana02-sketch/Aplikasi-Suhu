@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
-import { getSheetValues, appendSheetValues, updateSheetValues, clearSheetCache } from '@/lib/google-sheets';
+import { getSheetValues, appendSheetValues, updateSheetValues, clearSheetCache, clearSheetRange } from '@/lib/google-sheets';
 import { formatJakartaISO } from '@/lib/time';
 import { recordAuditLog } from '@/lib/audit';
 
@@ -203,3 +203,94 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getSessionUser(req);
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { warehouse_id } = body;
+
+    if (!warehouse_id) {
+      return NextResponse.json({ error: 'warehouse_id wajib diisi.' }, { status: 400 });
+    }
+
+    const whRows = await getSheetValues('MASTER_WAREHOUSE!A2:G');
+    const targetIdx = whRows.findIndex(r => r[0] === warehouse_id);
+    if (targetIdx === -1) {
+      return NextResponse.json({ error: 'Warehouse tidak ditemukan.' }, { status: 404 });
+    }
+
+    const targetRow = whRows[targetIdx];
+    const whCode = targetRow[1];
+
+    // Protect historical data (BR-08 / BR-11): Check TRANSAKSI_SUHU
+    const txRows = await getSheetValues('TRANSAKSI_SUHU!A2:E');
+    const hasTx = txRows.some(r => r[2] === warehouse_id || r[3] === whCode);
+    if (hasTx) {
+      return NextResponse.json(
+        { error: `Warehouse '${whCode}' memiliki riwayat transaksi suhu dan tidak dapat dihapus (BR-08 / BR-11). Anda hanya dapat menonaktifkannya.` },
+        { status: 400 }
+      );
+    }
+
+    // Also check if there are locations or periods
+    const [lokasiRows, periodeRows] = await Promise.all([
+      getSheetValues('MASTER_LOKASI!A2:H'),
+      getSheetValues('MASTER_PERIODE!A2:H')
+    ]);
+    const hasLocations = lokasiRows.some(r => r[1] === warehouse_id || r[1] === whCode);
+    const hasPeriods = periodeRows.some(r => r[1] === warehouse_id || r[1] === whCode);
+    if (hasLocations || hasPeriods) {
+      return NextResponse.json(
+        { error: `Warehouse '${whCode}' masih memiliki titik lokasi atau jadwal shift aktif. Silakan hapus atau pindahkan titik lokasi & jadwal shift terlebih dahulu.` },
+        { status: 400 }
+      );
+    }
+
+    // 1. Remove from MASTER_WAREHOUSE
+    const remainingWh = whRows.filter(r => r[0] !== warehouse_id);
+    await clearSheetRange('MASTER_WAREHOUSE!A2:G');
+    if (remainingWh.length > 0) {
+      await updateSheetValues(`MASTER_WAREHOUSE!A2:G${remainingWh.length + 1}`, remainingWh, 'RAW');
+    }
+
+    // 2. Remove settings for this warehouse from SETTINGS
+    const settingsRows = await getSheetValues('SETTINGS!A2:F');
+    const remainingSettings = settingsRows.filter(r => r[0] !== warehouse_id && r[0] !== whCode);
+    await clearSheetRange('SETTINGS!A2:F');
+    if (remainingSettings.length > 0) {
+      await updateSheetValues(`SETTINGS!A2:F${remainingSettings.length + 1}`, remainingSettings, 'RAW');
+    }
+
+    // 3. Remove access entries for this warehouse from USER_WAREHOUSE_ACCESS
+    const uwaRows = await getSheetValues('USER_WAREHOUSE_ACCESS!A2:G');
+    const remainingUwa = uwaRows.filter(r => r[2] !== warehouse_id && r[2] !== whCode);
+    await clearSheetRange('USER_WAREHOUSE_ACCESS!A2:G');
+    if (remainingUwa.length > 0) {
+      await updateSheetValues(`USER_WAREHOUSE_ACCESS!A2:G${remainingUwa.length + 1}`, remainingUwa, 'RAW');
+    }
+
+    clearSheetCache();
+
+    await recordAuditLog({
+      actor_user_id: session.user_id,
+      actor_username: session.username,
+      actor_role: session.role,
+      action_category: 'WH_MGMT',
+      warehouse_id: warehouse_id,
+      target_reference: warehouse_id,
+      before_value: { warehouse_id, code: whCode, name: targetRow[2] },
+      notes_or_reason: `Admin menghapus warehouse: ${whCode} (${targetRow[2]}).`
+    });
+
+    return NextResponse.json({ success: true, message: `Warehouse '${whCode}' berhasil dihapus permanen.` });
+  } catch (error: any) {
+    console.error('Error DELETE /api/admin/warehouses:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+

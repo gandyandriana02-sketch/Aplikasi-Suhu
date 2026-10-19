@@ -2264,10 +2264,15 @@ html, body {
   border-color: #94A3B8;
   color: var(--ios-blue);
 }
-.btn-tbl-action.danger:hover {
-  border-color: var(--ios-red);
+.btn-tbl-action.danger {
   color: var(--ios-red);
   background: var(--ios-red-tint);
+  border-color: rgba(255, 59, 48, 0.25);
+}
+.btn-tbl-action.danger:hover {
+  border-color: var(--ios-red);
+  color: #FFFFFF;
+  background: var(--ios-red);
 }
 .btn-tbl-action.primary {
   background: var(--ios-blue-tint);

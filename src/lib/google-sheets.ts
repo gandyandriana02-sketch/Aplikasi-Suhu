@@ -207,3 +207,28 @@ export async function updateSheetValues(range: string, values: any[][], valueInp
 
   return await res.json();
 }
+
+export async function clearSheetRange(range: string) {
+  if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not configured');
+  clearSheetCache();
+  const token = await getGoogleAccessToken();
+  const encodedRange = encodeURIComponent(range);
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodedRange}:clear`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Failed to clear range ${range}: ${errorText}`);
+  }
+
+  return await res.json();
+}
+

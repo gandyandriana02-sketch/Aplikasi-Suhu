@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
-import { getSheetValues, updateSheetValues, appendSheetValues, clearSheetCache } from '@/lib/google-sheets';
+import { getSheetValues, updateSheetValues, appendSheetValues, clearSheetCache, clearSheetRange } from '@/lib/google-sheets';
 import { formatJakartaISO } from '@/lib/time';
 import { recordAuditLog } from '@/lib/audit';
 
@@ -38,33 +38,40 @@ export async function GET(req: NextRequest) {
       getSheetValues('MASTER_WAREHOUSE!A2:G')
     ]);
 
-    let locations = lokasiRows.map(r => ({
-      location_id: r[0],
-      warehouse_id: resolveCanonicalWarehouseId(r[1], whRows),
-      location_name: r[2],
-      sort_order: parseInt(r[3] || '0', 10),
-      is_active: r[4] === 'TRUE',
-      created_at: r[5],
-      updated_at: r[6],
-      updated_by: r[7]
-    }));
+    let locations = lokasiRows
+      .filter(r => r[0] && r[0].trim() !== '')
+      .map(r => ({
+        location_id: r[0],
+        warehouse_id: resolveCanonicalWarehouseId(r[1], whRows),
+        location_name: r[2],
+        sort_order: parseInt(r[3] || '0', 10),
+        is_active: r[4] === 'TRUE',
+        created_at: r[5],
+        updated_at: r[6],
+        updated_by: r[7]
+      }));
 
-    let periods = periodeRows.map(r => ({
-      period_id: r[0],
-      warehouse_id: resolveCanonicalWarehouseId(r[1], whRows),
-      period_label: r[2],
-      sort_order: parseInt(r[3] || '0', 10),
-      is_active: r[4] === 'TRUE',
-      created_at: r[5],
-      updated_at: r[6],
-      updated_by: r[7]
-    }));
+    let periods = periodeRows
+      .filter(r => r[0] && r[0].trim() !== '')
+      .map(r => ({
+        period_id: r[0],
+        warehouse_id: resolveCanonicalWarehouseId(r[1], whRows),
+        period_label: r[2],
+        sort_order: parseInt(r[3] || '0', 10),
+        is_active: r[4] === 'TRUE',
+        created_at: r[5],
+        updated_at: r[6],
+        updated_by: r[7]
+      }));
 
     if (filterWhId && filterWhId !== 'all') {
       const canonicalFilter = resolveCanonicalWarehouseId(filterWhId, whRows);
       locations = locations.filter(l => l.warehouse_id === canonicalFilter);
       periods = periods.filter(p => p.warehouse_id === canonicalFilter);
     }
+
+    locations.sort((a, b) => a.sort_order - b.sort_order);
+    periods.sort((a, b) => a.sort_order - b.sort_order);
 
     return NextResponse.json({ locations, periods });
   } catch (error: any) {
@@ -100,10 +107,15 @@ export async function POST(req: NextRequest) {
     const canonicalWhId = resolveCanonicalWarehouseId(warehouse_id, whRows);
 
     const nowISO = formatJakartaISO();
-    const order = typeof sort_order === 'number' ? sort_order : 1;
+    let order = typeof sort_order === 'number' && sort_order > 0 ? sort_order : 0;
 
     if (type === 'LOCATION') {
       const rows = await getSheetValues('MASTER_LOKASI!A2:H');
+      const existingForWh = rows.filter(r => resolveCanonicalWarehouseId(r[1], whRows) === canonicalWhId);
+      if (order === 0) {
+        order = existingForWh.length + 1;
+      }
+
       let maxNum = 0;
       rows.forEach(r => {
         const match = (r[0] || '').match(/^LOC-(\d+)$/);
@@ -142,6 +154,11 @@ export async function POST(req: NextRequest) {
 
     if (type === 'PERIOD') {
       const rows = await getSheetValues('MASTER_PERIODE!A2:H');
+      const existingForWh = rows.filter(r => resolveCanonicalWarehouseId(r[1], whRows) === canonicalWhId);
+      if (order === 0) {
+        order = existingForWh.length + 1;
+      }
+
       let maxNum = 0;
       rows.forEach(r => {
         const match = (r[0] || '').match(/^PRD-(\d+)$/);
@@ -295,3 +312,110 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getSessionUser(req);
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
+    }
+    if (session.must_change_password) {
+      return NextResponse.json(
+        { error: 'Wajib mengganti password awal sebelum mengakses fitur admin.' },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+    const { type, id } = body;
+
+    if (!type || !id) {
+      return NextResponse.json({ error: 'type dan id wajib diisi.' }, { status: 400 });
+    }
+
+    // Check TRANSAKSI_SUHU to protect historical data (BR-08)
+    const txRows = await getSheetValues('TRANSAKSI_SUHU!A2:K');
+
+    if (type === 'LOCATION') {
+      const hasTx = txRows.some(r => r[7] === id);
+      if (hasTx) {
+        return NextResponse.json(
+          { error: 'Titik lokasi ini memiliki riwayat transaksi suhu dan tidak dapat dihapus (BR-08). Anda hanya dapat menonaktifkannya.' },
+          { status: 400 }
+        );
+      }
+
+      const rows = await getSheetValues('MASTER_LOKASI!A2:H');
+      const targetIdx = rows.findIndex(r => r[0] === id);
+      if (targetIdx === -1) {
+        return NextResponse.json({ error: 'Titik lokasi tidak ditemukan.' }, { status: 404 });
+      }
+
+      const targetRow = rows[targetIdx];
+      const remainingRows = rows.filter(r => r[0] !== id);
+
+      await clearSheetRange('MASTER_LOKASI!A2:H');
+      if (remainingRows.length > 0) {
+        await updateSheetValues(`MASTER_LOKASI!A2:H${remainingRows.length + 1}`, remainingRows, 'RAW');
+      }
+      clearSheetCache();
+
+      await recordAuditLog({
+        actor_user_id: session.user_id,
+        actor_username: session.username,
+        actor_role: session.role,
+        action_category: 'MASTER_MGMT',
+        warehouse_id: targetRow[1] || 'WH-001',
+        target_reference: id,
+        before_value: { location_id: id, name: targetRow[2], warehouse_id: targetRow[1] },
+        notes_or_reason: `Hapus master lokasi: ${targetRow[2]} (${id})`
+      });
+
+      return NextResponse.json({ success: true, message: 'Titik lokasi berhasil dihapus.' });
+    }
+
+    if (type === 'PERIOD') {
+      const hasTx = txRows.some(r => r[9] === id);
+      if (hasTx) {
+        return NextResponse.json(
+          { error: 'Jadwal shift ini memiliki riwayat transaksi suhu dan tidak dapat dihapus (BR-08). Anda hanya dapat menonaktifkannya.' },
+          { status: 400 }
+        );
+      }
+
+      const rows = await getSheetValues('MASTER_PERIODE!A2:H');
+      const targetIdx = rows.findIndex(r => r[0] === id);
+      if (targetIdx === -1) {
+        return NextResponse.json({ error: 'Jadwal shift tidak ditemukan.' }, { status: 404 });
+      }
+
+      const targetRow = rows[targetIdx];
+      const remainingRows = rows.filter(r => r[0] !== id);
+
+      await clearSheetRange('MASTER_PERIODE!A2:H');
+      if (remainingRows.length > 0) {
+        await updateSheetValues(`MASTER_PERIODE!A2:H${remainingRows.length + 1}`, remainingRows, 'RAW');
+      }
+      clearSheetCache();
+
+      await recordAuditLog({
+        actor_user_id: session.user_id,
+        actor_username: session.username,
+        actor_role: session.role,
+        action_category: 'MASTER_MGMT',
+        warehouse_id: targetRow[1] || 'WH-001',
+        target_reference: id,
+        before_value: { period_id: id, label: targetRow[2], warehouse_id: targetRow[1] },
+        notes_or_reason: `Hapus master jadwal: ${targetRow[2]} (${id})`
+      });
+
+      return NextResponse.json({ success: true, message: 'Jadwal shift berhasil dihapus.' });
+    }
+
+    return NextResponse.json({ error: 'type tidak valid. Gunakan LOCATION atau PERIOD.' }, { status: 400 });
+  } catch (error: any) {
+    console.error('Error DELETE /api/admin/master:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
