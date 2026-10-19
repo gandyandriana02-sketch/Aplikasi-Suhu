@@ -130,12 +130,14 @@ export default function CameraCaptureModal({
     y: number,
     w: number,
     h: number,
-    r: number
+    r: number,
+    stroke = false
   ) {
     if (typeof ctx.roundRect === 'function') {
       ctx.beginPath();
       ctx.roundRect(x, y, w, h, r);
       ctx.fill();
+      if (stroke) ctx.stroke();
     } else {
       ctx.beginPath();
       ctx.moveTo(x + r, y);
@@ -149,6 +151,7 @@ export default function CameraCaptureModal({
       ctx.quadraticCurveTo(x, y, x + r, y);
       ctx.closePath();
       ctx.fill();
+      if (stroke) ctx.stroke();
     }
   }
 
@@ -252,135 +255,249 @@ export default function CameraCaptureModal({
     }
     const pillText = `Koordinat: ${formattedCoords}`;
 
-    // 4. Calculate layout scales matching Timemark / GPS Camera aesthetic
-    const baseScale = Math.max(0.65, Math.min(1.35, targetWidth / 1000));
-    const padX = Math.round(28 * baseScale);
-    const padBottom = Math.round(26 * baseScale);
-    const itemGap = Math.round(10 * baseScale);
+    // 4. Calculate layout metrics matching Timemark Card Badge aesthetic (FR-008, BR-05, BR-06, NFR-01, NFR-03)
+    // Scale factor based on shorter image dimension so watermark is always crisp and proportionally large on mobile screens
+    const refDim = Math.min(targetWidth, targetHeight);
+    const scale = Math.max(1.0, Math.min(2.1, refDim / 520));
 
-    const clockFontSize = Math.round(58 * baseScale);
-    const dateFontSize = Math.round(18 * baseScale);
-    const dayFontSize = Math.round(16 * baseScale);
-    const textFontSize = Math.round(15 * baseScale);
-    const textLineHeight = Math.round(21 * baseScale);
-    const pillFontSize = Math.round(14 * baseScale);
+    const cardMargin = Math.round(18 * scale);
+    const cardPadX = Math.round(20 * scale);
+    const cardPadY = Math.round(18 * scale);
+    const cardRadius = Math.round(16 * scale);
+    const sectionGap = Math.round(10 * scale);
 
-    const clockFont = `700 ${clockFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, BlinkMacSystemFont, sans-serif`;
-    const dateFont = `500 ${dateFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    const clockFontSize = Math.round(52 * scale);
+    const tzFontSize = Math.round(17 * scale);
+    const dateFontSize = Math.round(19 * scale);
+    const dayFontSize = Math.round(15 * scale);
+    const badgeFontSize = Math.round(13 * scale);
+    const mainTextFontSize = Math.round(17 * scale);
+    const addressFontSize = Math.round(16 * scale);
+    const addressLineHeight = Math.round(22 * scale);
+    const gpsFontSize = Math.round(15 * scale);
+
+    const clockFont = `800 ${clockFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, BlinkMacSystemFont, sans-serif`;
+    const tzFont = `700 ${tzFontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    const dateFont = `700 ${dateFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     const dayFont = `500 ${dayFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    const bodyFont = `400 ${textFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    const pillFont = `500 ${pillFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace`;
+    const badgeFont = `700 ${badgeFontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    const mainTextFont = `700 ${mainTextFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    const addressFont = `500 ${addressFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    const gpsFont = `600 ${gpsFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace`;
 
-    // Measure clock width
-    ctx.font = clockFont;
-    const clockWidth = ctx.measureText(timeFormatted).width;
+    // Maximum card width (fills nicely on portrait, capped cleanly on wide landscape)
+    const cardW = Math.min(targetWidth - cardMargin * 2, Math.round(840 * scale));
+    const cardX = cardMargin;
+    const contentW = cardW - cardPadX * 2;
 
-    // Wrap address lines and include location & officer info
-    const maxTextWidth = Math.min(targetWidth - padX * 2, Math.round(720 * baseScale));
-    ctx.font = bodyFont;
+    // Wrap address lines
+    const fullAddress = activeAddress || 'Warehouse Temperature Report • Titik Pantau Gudang Terverifikasi';
+    const alamatBadgeText = '🏠 ALAMAT';
+    ctx.font = badgeFont;
+    const alamatBadgeW = ctx.measureText(alamatBadgeText).width + Math.round(16 * scale);
+    const alamatBadgeH = Math.round(22 * scale);
 
-    let addressLines: string[] = [];
-    if (activeAddress) {
-      addressLines = wrapCanvasText(ctx, activeAddress, maxTextWidth);
-      addressLines.push(`Lokasi: ${locationName} • Petugas: ${petugasName}`);
-    } else {
-      addressLines = [
-        `Warehouse Temperature Report • ${locationName}`,
-        `Petugas: ${petugasName}`
-      ];
-    }
+    ctx.font = addressFont;
+    const addressLines = wrapCanvasText(ctx, fullAddress, contentW - alamatBadgeW - Math.round(12 * scale));
 
-    // Measure Coordinates pill
-    ctx.font = pillFont;
-    const pillTextWidth = ctx.measureText(pillText).width;
-    const pillPaddingX = Math.round(12 * baseScale);
-    const pillHeight = Math.round(28 * baseScale);
-    const pillWidth = pillTextWidth + pillPaddingX * 2;
+    // Calculate Titik & Petugas badge sizes
+    const titikFullText = `📍 TITIK: ${locationName}`;
+    const petugasFullText = `👤 PETUGAS: ${petugasName}`;
+    ctx.font = mainTextFont;
+    const titikW = ctx.measureText(titikFullText).width + Math.round(22 * scale);
+    const petugasW = ctx.measureText(petugasFullText).width + Math.round(22 * scale);
+    const canFitRow2SideBySide = (titikW + petugasW + Math.round(12 * scale)) <= contentW;
+    const row2H = canFitRow2SideBySide ? Math.round(28 * scale) : Math.round(28 * scale) * 2 + Math.round(6 * scale);
 
-    // Calculate total height of the watermark block
-    const totalBlockHeight =
-      clockFontSize + itemGap + (addressLines.length * textLineHeight) + itemGap + pillHeight;
+    // Dynamic row heights
+    const row1H = clockFontSize;
+    const dividerGap = Math.round(8 * scale);
+    const row3H = Math.max(alamatBadgeH, addressLines.length * addressLineHeight);
+    const row4H = Math.round(32 * scale);
 
-    const startY = targetHeight - padBottom - totalBlockHeight;
+    // Total Card Height
+    const totalCardH =
+      cardPadY * 2 +
+      row1H +
+      dividerGap +
+      Math.round(8 * scale) +
+      row2H +
+      sectionGap +
+      row3H +
+      sectionGap +
+      row4H;
 
-    // 5. Draw photographic subtle dark vignette at the bottom for crisp contrast
+    const cardY = targetHeight - cardMargin - totalCardH;
+
+    // 5. Draw smooth cinematic dark vignette at the bottom of the photo
     const vignetteHeight = Math.min(
       targetHeight,
-      Math.round(totalBlockHeight + padBottom * 2 + 45 * baseScale)
+      Math.round(totalCardH + cardMargin * 2 + 50 * scale)
     );
     const vignette = ctx.createLinearGradient(0, targetHeight - vignetteHeight, 0, targetHeight);
     vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    vignette.addColorStop(0.28, 'rgba(0, 0, 0, 0.40)');
-    vignette.addColorStop(0.70, 'rgba(0, 0, 0, 0.70)');
-    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.88)');
+    vignette.addColorStop(0.35, 'rgba(0, 0, 0, 0.45)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
 
     ctx.save();
     ctx.fillStyle = vignette;
     ctx.fillRect(0, targetHeight - vignetteHeight, targetWidth, vignetteHeight);
     ctx.restore();
 
-    // 6. Draw Row 1: Large bold digital clock + Date & Day beside clock
+    // 6. Draw Timemark Dark Frosted Card Container (High Contrast & Clear Border)
     ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-    ctx.shadowBlur = Math.round(4 * baseScale);
-    ctx.shadowOffsetX = Math.round(1 * baseScale);
-    ctx.shadowOffsetY = Math.round(1 * baseScale);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+    ctx.shadowBlur = Math.round(14 * scale);
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = Math.round(4 * scale);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)'; // Deep solid dark slate (92% opacity)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.lineWidth = Math.max(1.5, Math.round(1.8 * scale));
+    drawRoundedRect(ctx, cardX, cardY, cardW, totalCardH, cardRadius, true);
+    ctx.restore();
+
+    // 7. Render Card Content (Urutan: Jam/Tanggal → Titik & Petugas → Alamat → Koordinat GPS)
+    let currentY = cardY + cardPadY;
+
+    // --- ROW 1: Jam & Tanggal ---
+    ctx.save();
+    ctx.textBaseline = 'top';
 
     // Clock
     ctx.font = clockFont;
     ctx.fillStyle = '#FFFFFF';
-    ctx.textBaseline = 'top';
-    ctx.fillText(timeFormatted, padX, startY);
+    ctx.fillText(timeFormatted, cardX + cardPadX, currentY);
+    const clockW = ctx.measureText(timeFormatted).width;
 
-    // Date & Day to the right
-    const dateGap = Math.round(14 * baseScale);
-    const dateX = padX + clockWidth + dateGap;
+    // WIB Badge
+    ctx.font = tzFont;
+    ctx.fillStyle = '#38BDF8';
+    ctx.fillText('WIB', cardX + cardPadX + clockW + Math.round(8 * scale), currentY + Math.round(4 * scale));
 
+    // Date & Day to the right of clock
+    const dateX = cardX + cardPadX + clockW + Math.round(56 * scale);
     ctx.font = dateFont;
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(dateFormatted, dateX, startY + Math.round(4 * baseScale));
+    ctx.fillText(dateFormatted, dateX, currentY + Math.round(2 * scale));
 
     ctx.font = dayFont;
-    ctx.fillStyle = '#E2E8F0';
+    ctx.fillStyle = '#94A3B8';
     ctx.fillText(
       dayFormatted,
       dateX,
-      startY + Math.round(4 * baseScale) + Math.round(23 * baseScale)
+      currentY + Math.round(2 * scale) + dateFontSize + Math.round(4 * scale)
     );
     ctx.restore();
 
-    // 7. Draw Row 2: Wrapped address & Warehouse Location / Officer line
-    const addressStartY = startY + clockFontSize + itemGap;
+    currentY += row1H + dividerGap;
 
+    // Divider Line
     ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-    ctx.shadowBlur = Math.round(3 * baseScale);
-    ctx.shadowOffsetX = Math.round(1 * baseScale);
-    ctx.shadowOffsetY = Math.round(1 * baseScale);
-    ctx.font = bodyFont;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.textBaseline = 'top';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cardX + cardPadX, currentY);
+    ctx.lineTo(cardX + cardW - cardPadX, currentY);
+    ctx.stroke();
+    ctx.restore();
 
-    addressLines.forEach((line, index) => {
-      ctx.fillText(line, padX, addressStartY + index * textLineHeight);
+    currentY += Math.round(10 * scale);
+
+    // --- ROW 2: Titik Pantau & Petugas ---
+    ctx.save();
+    ctx.textBaseline = 'middle';
+    const badgeH = Math.round(28 * scale);
+    const badgeRadius = Math.round(6 * scale);
+
+    if (canFitRow2SideBySide) {
+      // Titik pill
+      ctx.fillStyle = 'rgba(14, 165, 233, 0.22)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+      ctx.lineWidth = 1;
+      drawRoundedRect(ctx, cardX + cardPadX, currentY, titikW, badgeH, badgeRadius, true);
+
+      ctx.font = mainTextFont;
+      ctx.fillStyle = '#38BDF8';
+      ctx.fillText(titikFullText, cardX + cardPadX + Math.round(10 * scale), currentY + badgeH / 2);
+
+      // Petugas pill
+      const petugasX = cardX + cardPadX + titikW + Math.round(12 * scale);
+      ctx.fillStyle = 'rgba(168, 85, 247, 0.22)';
+      ctx.strokeStyle = 'rgba(192, 132, 252, 0.55)';
+      ctx.lineWidth = 1;
+      drawRoundedRect(ctx, petugasX, currentY, petugasW, badgeH, badgeRadius, true);
+
+      ctx.font = mainTextFont;
+      ctx.fillStyle = '#C084FC';
+      ctx.fillText(petugasFullText, petugasX + Math.round(10 * scale), currentY + badgeH / 2);
+    } else {
+      // Stacked if narrow
+      ctx.fillStyle = 'rgba(14, 165, 233, 0.22)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+      ctx.lineWidth = 1;
+      drawRoundedRect(ctx, cardX + cardPadX, currentY, Math.min(contentW, titikW), badgeH, badgeRadius, true);
+
+      ctx.font = mainTextFont;
+      ctx.fillStyle = '#38BDF8';
+      ctx.fillText(titikFullText, cardX + cardPadX + Math.round(10 * scale), currentY + badgeH / 2);
+
+      const line2Y = currentY + badgeH + Math.round(6 * scale);
+      ctx.fillStyle = 'rgba(168, 85, 247, 0.22)';
+      ctx.strokeStyle = 'rgba(192, 132, 252, 0.55)';
+      ctx.lineWidth = 1;
+      drawRoundedRect(ctx, cardX + cardPadX, line2Y, Math.min(contentW, petugasW), badgeH, badgeRadius, true);
+
+      ctx.font = mainTextFont;
+      ctx.fillStyle = '#C084FC';
+      ctx.fillText(petugasFullText, cardX + cardPadX + Math.round(10 * scale), line2Y + badgeH / 2);
+    }
+    ctx.restore();
+
+    currentY += row2H + sectionGap;
+
+    // --- ROW 3: Alamat Geocoding Lengkap ---
+    ctx.save();
+    ctx.fillStyle = 'rgba(245, 158, 11, 0.20)';
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, cardX + cardPadX, currentY, alamatBadgeW, alamatBadgeH, Math.round(6 * scale), true);
+
+    ctx.font = badgeFont;
+    ctx.fillStyle = '#FBBF24';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(alamatBadgeText, cardX + cardPadX + Math.round(8 * scale), currentY + alamatBadgeH / 2);
+
+    ctx.font = addressFont;
+    ctx.fillStyle = '#F1F5F9';
+    ctx.textBaseline = 'top';
+    const textStartX = cardX + cardPadX + alamatBadgeW + Math.round(10 * scale);
+    addressLines.forEach((line, idx) => {
+      ctx.fillText(line, textStartX, currentY + idx * addressLineHeight);
     });
     ctx.restore();
 
-    // 8. Draw Row 3: Translucent pill container with GPS coordinates
-    const pillY = addressStartY + (addressLines.length * textLineHeight) + itemGap;
+    currentY += row3H + sectionGap;
 
+    // --- ROW 4: Koordinat GPS ---
     ctx.save();
-    ctx.fillStyle = 'rgba(40, 40, 44, 0.78)';
-    drawRoundedRect(ctx, padX, pillY, pillWidth, pillHeight, Math.round(6 * baseScale));
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.16)';
+    ctx.strokeStyle = 'rgba(74, 222, 128, 0.45)';
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, cardX + cardPadX, currentY, contentW, row4H, Math.round(8 * scale), true);
 
-    ctx.font = pillFont;
-    ctx.fillStyle = '#F8FAFC';
+    ctx.font = gpsFont;
+    ctx.fillStyle = '#4ADE80';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-    ctx.shadowBlur = Math.round(2 * baseScale);
-    ctx.shadowOffsetX = 1;
-    ctx.shadowOffsetY = 1;
-    ctx.fillText(pillText, padX + pillPaddingX, pillY + pillHeight / 2);
+    ctx.fillText(`🌐 GPS: ${formattedCoords}`, cardX + cardPadX + Math.round(12 * scale), currentY + row4H / 2);
+
+    // Right-hand watermark brand
+    const tagText = 'Warehouse Temperature Report';
+    ctx.font = dayFont;
+    ctx.fillStyle = '#94A3B8';
+    const tagW = ctx.measureText(tagText).width;
+    if (contentW > Math.round(520 * scale)) {
+      ctx.fillText(tagText, cardX + cardPadX + contentW - tagW - Math.round(12 * scale), currentY + row4H / 2);
+    }
     ctx.restore();
 
     // 9. Compress to JPEG with quality 0.80 (target < 350 KB, NFR-01)
