@@ -87,7 +87,16 @@ export function parseWarehouseSettings(
 
   // 2. Process warehouse-specific rows (strict overrides)
   if (warehouseId && warehouseId !== 'GLOBAL') {
-    const whRows = rows.filter(r => r[0] === warehouseId);
+    const cleanWh = warehouseId.trim().toUpperCase();
+    const whRows = rows.filter(r => {
+      if (!r[0]) return false;
+      const rowWh = String(r[0]).trim().toUpperCase();
+      if (rowWh === cleanWh) return true;
+      // Also match WH-001 <-> CK1, WH-002 <-> CK2
+      if ((cleanWh === 'WH-001' && rowWh === 'CK1') || (cleanWh === 'CK1' && rowWh === 'WH-001')) return true;
+      if ((cleanWh === 'WH-002' && rowWh === 'CK2') || (cleanWh === 'CK2' && rowWh === 'WH-002')) return true;
+      return false;
+    });
     for (const r of whRows) {
       applyRow(result, r[1], r[2]);
     }

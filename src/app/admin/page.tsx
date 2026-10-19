@@ -225,19 +225,22 @@ function AdminPageContent() {
         window.location.href = '/login';
       });
 
-    // Fetch accessible warehouses list for dropdowns
-    fetch('/api/warehouses', { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((d) => {
-        if (d?.warehouses?.length > 0) {
-          setWarehousesList(d.warehouses);
-          setSelectedMasterWhId(d.warehouses[0].warehouse_id);
-          setSelectedSettingsWhId(d.warehouses[0].warehouse_id);
-          setNewDefaultWhId(d.warehouses[0].warehouse_id);
-        }
-      })
-      .catch(() => {});
+    loadWarehousesList();
   }, []);
+
+  async function loadWarehousesList() {
+    try {
+      const res = await fetch('/api/warehouses', { cache: 'no-store' });
+      if (!res.ok) return;
+      const d = await res.json();
+      if (d?.warehouses?.length > 0) {
+        setWarehousesList(d.warehouses);
+        setSelectedMasterWhId((prev) => prev || d.warehouses[0].warehouse_id);
+        setSelectedSettingsWhId((prev) => prev || d.warehouses[0].warehouse_id);
+        setNewDefaultWhId((prev) => prev || d.warehouses[0].warehouse_id);
+      }
+    } catch {}
+  }
 
   // Flash success helper
   function flashSuccess(msg: string) {
@@ -443,7 +446,7 @@ function AdminPageContent() {
       if (!res.ok) throw new Error(data.error || 'Gagal menambah titik lokasi');
       setNewLocName('');
       flashSuccess('Titik pantau baru berhasil ditambahkan.');
-      loadTabData('master');
+      await loadMasterForWh(selectedMasterWhId);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -467,7 +470,7 @@ function AdminPageContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal mengubah status');
       flashSuccess(`Titik pantau berhasil di-${actionName}.`);
-      loadTabData('master');
+      await loadMasterForWh(selectedMasterWhId);
     } catch (err: any) {
       alert(err.message);
     }
@@ -492,7 +495,7 @@ function AdminPageContent() {
       if (!res.ok) throw new Error(data.error || 'Gagal mengubah lokasi');
       setEditingLoc(null);
       flashSuccess('Data titik pantau berhasil diubah.');
-      loadTabData('master');
+      await loadMasterForWh(selectedMasterWhId);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -518,7 +521,7 @@ function AdminPageContent() {
       if (!res.ok) throw new Error(data.error || 'Gagal menambah jadwal shift');
       setNewPeriodLabel('');
       flashSuccess('Jadwal shift baru berhasil ditambahkan.');
-      loadTabData('master');
+      await loadMasterForWh(selectedMasterWhId);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -542,7 +545,7 @@ function AdminPageContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal mengubah status');
       flashSuccess(`Jadwal shift berhasil di-${actionName}.`);
-      loadTabData('master');
+      await loadMasterForWh(selectedMasterWhId);
     } catch (err: any) {
       alert(err.message);
     }
@@ -567,7 +570,7 @@ function AdminPageContent() {
       if (!res.ok) throw new Error(data.error || 'Gagal mengubah jadwal');
       setEditingPeriod(null);
       flashSuccess('Data jadwal shift berhasil diubah.');
-      loadTabData('master');
+      await loadMasterForWh(selectedMasterWhId);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -594,7 +597,7 @@ function AdminPageContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal menyimpan pengaturan');
       flashSuccess('Pengaturan sistem berhasil diperbarui.');
-      loadTabData('settings');
+      await loadSettingsForWh(selectedSettingsWhId);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -888,6 +891,7 @@ function AdminPageContent() {
                 <AdminWarehousesTab
                   onSuccess={flashSuccess}
                   onError={(err) => setError(err)}
+                  onWarehouseChange={loadWarehousesList}
                 />
               )}
 

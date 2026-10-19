@@ -6,6 +6,16 @@ import { recordAuditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
+function resolveCanonicalWarehouseId(rawWh: string, whRows: any[][]): string {
+  if (!rawWh) return 'WH-001';
+  const clean = rawWh.trim();
+  const byId = whRows.find(r => r[0] && r[0].trim().toUpperCase() === clean.toUpperCase());
+  if (byId) return byId[0];
+  const byCode = whRows.find(r => r[1] && r[1].trim().toUpperCase() === clean.toUpperCase());
+  if (byCode) return byCode[0];
+  return clean;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getSessionUser(req);
@@ -22,14 +32,15 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const filterWhId = searchParams.get('warehouse_id');
 
-    const [lokasiRows, periodeRows] = await Promise.all([
+    const [lokasiRows, periodeRows, whRows] = await Promise.all([
       getSheetValues('MASTER_LOKASI!A2:H'),
-      getSheetValues('MASTER_PERIODE!A2:H')
+      getSheetValues('MASTER_PERIODE!A2:H'),
+      getSheetValues('MASTER_WAREHOUSE!A2:G')
     ]);
 
     let locations = lokasiRows.map(r => ({
       location_id: r[0],
-      warehouse_id: r[1] || 'WH-001',
+      warehouse_id: resolveCanonicalWarehouseId(r[1], whRows),
       location_name: r[2],
       sort_order: parseInt(r[3] || '0', 10),
       is_active: r[4] === 'TRUE',
@@ -40,7 +51,7 @@ export async function GET(req: NextRequest) {
 
     let periods = periodeRows.map(r => ({
       period_id: r[0],
-      warehouse_id: r[1] || 'WH-001',
+      warehouse_id: resolveCanonicalWarehouseId(r[1], whRows),
       period_label: r[2],
       sort_order: parseInt(r[3] || '0', 10),
       is_active: r[4] === 'TRUE',
@@ -50,8 +61,9 @@ export async function GET(req: NextRequest) {
     }));
 
     if (filterWhId && filterWhId !== 'all') {
-      locations = locations.filter(l => l.warehouse_id === filterWhId);
-      periods = periods.filter(p => p.warehouse_id === filterWhId);
+      const canonicalFilter = resolveCanonicalWarehouseId(filterWhId, whRows);
+      locations = locations.filter(l => l.warehouse_id === canonicalFilter);
+      periods = periods.filter(p => p.warehouse_id === canonicalFilter);
     }
 
     return NextResponse.json({ locations, periods });
@@ -84,15 +96,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const whRows = await getSheetValues('MASTER_WAREHOUSE!A2:G');
+    const canonicalWhId = resolveCanonicalWarehouseId(warehouse_id, whRows);
+
     const nowISO = formatJakartaISO();
     const order = typeof sort_order === 'number' ? sort_order : 1;
 
     if (type === 'LOCATION') {
       const rows = await getSheetValues('MASTER_LOKASI!A2:H');
-      const newId = `LOC-${String(rows.length + 1).padStart(3, '0')}`;
+      let maxNum = 0;
+      rows.forEach(r => {
+        const match = (r[0] || '').match(/^LOC-(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) maxNum = num;
+        }
+      });
+      const newId = `LOC-${String(maxNum + 1).padStart(3, '0')}`;
       const newRow = [
         newId,
-        warehouse_id,
+        canonicalWhId,
         name_or_label.trim(),
         order,
         'TRUE',
@@ -108,10 +131,10 @@ export async function POST(req: NextRequest) {
         actor_username: session.username,
         actor_role: session.role,
         action_category: 'MASTER_MGMT',
-        warehouse_id: warehouse_id,
+        warehouse_id: canonicalWhId,
         target_reference: newId,
-        after_value: { location_id: newId, warehouse_id, location_name: name_or_label, sort_order: order },
-        notes_or_reason: `Tambah master lokasi: ${name_or_label} (${warehouse_id})`
+        after_value: { location_id: newId, warehouse_id: canonicalWhId, location_name: name_or_label, sort_order: order },
+        notes_or_reason: `Tambah master lokasi: ${name_or_label} (${canonicalWhId})`
       });
 
       return NextResponse.json({ success: true, message: 'Lokasi berhasil ditambahkan.', id: newId }, { status: 201 });
@@ -119,10 +142,18 @@ export async function POST(req: NextRequest) {
 
     if (type === 'PERIOD') {
       const rows = await getSheetValues('MASTER_PERIODE!A2:H');
-      const newId = `PRD-${String(rows.length + 1).padStart(3, '0')}`;
+      let maxNum = 0;
+      rows.forEach(r => {
+        const match = (r[0] || '').match(/^PRD-(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) maxNum = num;
+        }
+      });
+      const newId = `PRD-${String(maxNum + 1).padStart(3, '0')}`;
       const newRow = [
         newId,
-        warehouse_id,
+        canonicalWhId,
         name_or_label.trim(),
         order,
         'TRUE',
@@ -138,10 +169,10 @@ export async function POST(req: NextRequest) {
         actor_username: session.username,
         actor_role: session.role,
         action_category: 'MASTER_MGMT',
-        warehouse_id: warehouse_id,
+        warehouse_id: canonicalWhId,
         target_reference: newId,
-        after_value: { period_id: newId, warehouse_id, period_label: name_or_label, sort_order: order },
-        notes_or_reason: `Tambah master jadwal: ${name_or_label} (${warehouse_id})`
+        after_value: { period_id: newId, warehouse_id: canonicalWhId, period_label: name_or_label, sort_order: order },
+        notes_or_reason: `Tambah master jadwal: ${name_or_label} (${canonicalWhId})`
       });
 
       return NextResponse.json({ success: true, message: 'Jadwal berhasil ditambahkan.', id: newId }, { status: 201 });

@@ -53,24 +53,39 @@ export async function GET(req: NextRequest) {
       if (dbUser[4]) session.role = dbUser[4] as 'ADMIN' | 'MEMBER';
     }
 
+    // Helper to resolve canonical warehouse ID from code or ID
+    const resolveCanonical = (rawWh: string) => {
+      if (!rawWh) return 'WH-001';
+      const clean = rawWh.trim();
+      const match = whRows.find(
+        r => (r[0] && r[0].trim().toUpperCase() === clean.toUpperCase()) ||
+             (r[1] && r[1].trim().toUpperCase() === clean.toUpperCase())
+      );
+      return match ? match[0] : clean;
+    };
+
+    const targetCanonical = resolveCanonical(warehouseId);
+
     // Parse active warehouse info
-    const currentWhRow = whRows.find(r => r[0] === warehouseId);
+    const currentWhRow = whRows.find(
+      r => r[0] === targetCanonical || (r[1] && r[1].trim().toUpperCase() === warehouseId.trim().toUpperCase())
+    );
     const currentWarehouse = currentWhRow ? {
       warehouse_id: currentWhRow[0],
       warehouse_code: currentWhRow[1],
       warehouse_name: currentWhRow[2]
     } : {
-      warehouse_id: warehouseId,
-      warehouse_code: 'CK01',
+      warehouse_id: targetCanonical,
+      warehouse_code: 'CK1',
       warehouse_name: 'Cikupa 1'
     };
 
     // Parse active locations for this warehouse (r[1] = warehouse_id, r[4] = is_active)
     const locations = lokasiRows
-      .filter(r => r[1] === warehouseId && r[4] === 'TRUE')
+      .filter(r => resolveCanonical(r[1]) === targetCanonical && r[4] === 'TRUE')
       .map(r => ({
         location_id: r[0],
-        warehouse_id: r[1],
+        warehouse_id: resolveCanonical(r[1]),
         location_name: r[2],
         sort_order: parseInt(r[3] || '0', 10)
       }))
@@ -78,17 +93,17 @@ export async function GET(req: NextRequest) {
 
     // Parse active periods for this warehouse (r[1] = warehouse_id, r[4] = is_active)
     const periods = periodeRows
-      .filter(r => r[1] === warehouseId && r[4] === 'TRUE')
+      .filter(r => resolveCanonical(r[1]) === targetCanonical && r[4] === 'TRUE')
       .map(r => ({
         period_id: r[0],
-        warehouse_id: r[1],
+        warehouse_id: resolveCanonical(r[1]),
         period_label: r[2],
         sort_order: parseInt(r[3] || '0', 10)
       }))
       .sort((a, b) => a.sort_order - b.sort_order);
 
     // Parse settings per warehouse with strict hierarchical resolution
-    const whSettings = parseWarehouseSettings(settingsRows, warehouseId);
+    const whSettings = parseWarehouseSettings(settingsRows, targetCanonical);
     const maxTempLimit = whSettings.max_temp_limit;
     const lockSunday = whSettings.lock_sunday;
     const holidayDates = whSettings.holiday_dates;

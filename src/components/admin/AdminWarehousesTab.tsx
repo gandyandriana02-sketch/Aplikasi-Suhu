@@ -15,9 +15,10 @@ export interface WarehouseItem {
 interface AdminWarehousesTabProps {
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
+  onWarehouseChange?: () => void;
 }
 
-export function AdminWarehousesTab({ onSuccess, onError }: AdminWarehousesTabProps) {
+export function AdminWarehousesTab({ onSuccess, onError, onWarehouseChange }: AdminWarehousesTabProps) {
   const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -87,6 +88,7 @@ export function AdminWarehousesTab({ onSuccess, onError }: AdminWarehousesTabPro
       setWhName('');
       onSuccess(`Warehouse ${cleanCode} (${cleanName}) berhasil ditambahkan.`);
       await loadWarehouses();
+      onWarehouseChange?.();
     } catch (err: any) {
       setModalError(err.message || 'Terjadi kesalahan sistem.');
     } finally {
@@ -125,6 +127,7 @@ export function AdminWarehousesTab({ onSuccess, onError }: AdminWarehousesTabPro
       setEditingWh(null);
       onSuccess(`Data warehouse ${cleanCode} (${cleanName}) berhasil diperbarui.`);
       await loadWarehouses();
+      onWarehouseChange?.();
     } catch (err: any) {
       setEditError(err.message || 'Terjadi kesalahan saat menyimpan perubahan.');
     } finally {
@@ -159,6 +162,7 @@ export function AdminWarehousesTab({ onSuccess, onError }: AdminWarehousesTabPro
 
       onSuccess(`Status warehouse ${wh.warehouse_code} berhasil diperbarui.`);
       await loadWarehouses();
+      onWarehouseChange?.();
     } catch (err: any) {
       onError(err.message || 'Gagal mengubah status warehouse.');
     }

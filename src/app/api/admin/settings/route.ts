@@ -7,6 +7,16 @@ import { parseWarehouseSettings } from '@/lib/settings';
 
 export const dynamic = 'force-dynamic';
 
+function resolveCanonicalWarehouseId(rawWh: string, whRows: any[][]): string {
+  if (!rawWh) return 'WH-001';
+  const clean = rawWh.trim();
+  const byId = whRows.find(r => r[0] && r[0].trim().toUpperCase() === clean.toUpperCase());
+  if (byId) return byId[0];
+  const byCode = whRows.find(r => r[1] && r[1].trim().toUpperCase() === clean.toUpperCase());
+  if (byCode) return byCode[0];
+  return clean;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getSessionUser(req);
@@ -21,9 +31,13 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const targetWhId = searchParams.get('warehouse_id') || 'WH-001';
+    const rawWhId = searchParams.get('warehouse_id') || 'WH-001';
 
-    const rows = await getSheetValues('SETTINGS!A2:F');
+    const [rows, whRows] = await Promise.all([
+      getSheetValues('SETTINGS!A2:F'),
+      getSheetValues('MASTER_WAREHOUSE!A2:G')
+    ]);
+    const targetWhId = resolveCanonicalWarehouseId(rawWhId, whRows);
     const settings = parseWarehouseSettings(rows, targetWhId);
 
     return NextResponse.json({ settings, warehouse_id: targetWhId });
@@ -47,8 +61,12 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const targetWhId = body.warehouse_id || 'WH-001';
-    const rows = await getSheetValues('SETTINGS!A2:F');
+    const rawWhId = body.warehouse_id || 'WH-001';
+    const [rows, whRows] = await Promise.all([
+      getSheetValues('SETTINGS!A2:F'),
+      getSheetValues('MASTER_WAREHOUSE!A2:G')
+    ]);
+    const targetWhId = resolveCanonicalWarehouseId(rawWhId, whRows);
     const nowISO = formatJakartaISO();
 
     const allowedKeys = [
@@ -72,7 +90,9 @@ export async function PUT(req: NextRequest) {
     for (const key of allowedKeys) {
       if (body[key] !== undefined) {
         const whScope = (key === 'app_name' || key === 'app_icon') ? 'GLOBAL' : targetWhId;
-        const rowIndex = rows.findIndex(r => r[0] === whScope && r[1] === key);
+        const rowIndex = rows.findIndex(r => 
+          (whScope === 'GLOBAL' ? r[0] === 'GLOBAL' : resolveCanonicalWarehouseId(r[0], whRows) === targetWhId) && r[1] === key
+        );
 
         let newValString = '';
         if (key === 'max_temp_limit') {

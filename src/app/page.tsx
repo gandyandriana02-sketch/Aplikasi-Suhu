@@ -884,10 +884,14 @@ export default function HomePage() {
               const hasSuhu = !isNaN(numericSuhu) && locState.suhu.trim() !== '';
               const isOverLimit = hasSuhu && numericSuhu > context.max_temp_limit;
 
+              const isCompleted = !!existingTx;
+              const isOver = existingTx?.status_suhu === 'MELEBIHI_BATAS';
+              const completedClass = isCompleted ? (isOver ? 'is-completed-over' : 'is-completed-normal') : '';
+
               return (
                 <article
                   key={loc.location_id}
-                  className="location-apple-card stagger-in"
+                  className={`location-apple-card stagger-in ${completedClass}`}
                   style={{ animationDelay: `${idx * 45}ms` }}
                 >
                   {/* Card Top Header */}
@@ -901,21 +905,45 @@ export default function HomePage() {
                     </div>
 
                     {existingTx ? (
-                      existingTx.status_suhu === 'MELEBIHI_BATAS' ? (
-                        <span className="status-capsule overlimit">
-                          <svg className="sf-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      isOver ? (
+                        <span
+                          className="status-capsule overlimit"
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            padding: '4px 10px',
+                            height: '26px',
+                            background: '#FEE2E2',
+                            color: '#DC2626',
+                            border: '1.5px solid #FCA5A5',
+                            boxShadow: '0 2px 6px rgba(220, 38, 38, 0.12)'
+                          }}
+                        >
+                          <svg className="sf-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
                             <line x1="12" y1="9" x2="12" y2="13"/>
                             <line x1="12" y1="17" x2="12.01" y2="17"/>
                           </svg>
-                          MELEBIHI BATAS
+                          MELEBIHI BATAS (TERSIMPAN)
                         </span>
                       ) : (
-                        <span className="status-capsule normal">
-                          <svg className="sf-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <span
+                          className="status-capsule normal"
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            padding: '4px 10px',
+                            height: '26px',
+                            background: '#DCFCE7',
+                            color: '#15803D',
+                            border: '1.5px solid #86EFAC',
+                            boxShadow: '0 2px 6px rgba(22, 163, 74, 0.12)'
+                          }}
+                        >
+                          <svg className="sf-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12"/>
                           </svg>
-                          NORMAL
+                          TERSIMPAN LENGKAP
                         </span>
                       )
                     ) : (
@@ -932,16 +960,43 @@ export default function HomePage() {
                   {/* 1. Recorded State */}
                   {existingTx ? (
                     <div className="recorded-box">
+                      {/* Confirmation Banner */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          borderRadius: '10px',
+                          background: isOver ? '#FEF2F2' : '#F0FDF4',
+                          border: `1px solid ${isOver ? '#FECACA' : '#BBF7D0'}`,
+                          color: isOver ? '#991B1B' : '#166534',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          marginBottom: '10px'
+                        }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                          <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <span>
+                          {isOver
+                            ? 'Data suhu telah tercatat & alert telah dikirim ke tim'
+                            : 'Data titik pantau ini telah tersimpan lengkap di Google Sheets'}
+                        </span>
+                      </div>
+
                       <div className="temp-readout-row">
                         <div className="temp-hero-col">
                           <span
                             className="temp-hero-label"
-                            style={existingTx.status_suhu === 'MELEBIHI_BATAS' ? { color: 'var(--over)' } : {}}
+                            style={isOver ? { color: 'var(--over)' } : {}}
                           >
-                            {existingTx.status_suhu === 'MELEBIHI_BATAS' ? 'Suhu Melebihi Batas Aman' : 'Suhu Tercatat'}
+                            {isOver ? 'Suhu Melebihi Batas Aman' : 'Suhu Tercatat'}
                           </span>
                           <div
-                            className={`temp-hero-number num ${existingTx.status_suhu === 'MELEBIHI_BATAS' ? 'overlimit' : 'normal'}`}
+                            className={`temp-hero-number num ${isOver ? 'overlimit' : 'normal'}`}
                           >
                             {existingTx.suhu.toFixed(1).replace('.', ',')}
                             <span style={{ fontSize: '20px', marginLeft: '2px' }}>°C</span>
@@ -956,7 +1011,7 @@ export default function HomePage() {
                       </div>
 
                       {/* WhatsApp Notice Pill for Overlimit */}
-                      {existingTx.status_suhu === 'MELEBIHI_BATAS' && (
+                      {isOver && (
                         <div
                           style={{
                             background: 'var(--over-tint)',
@@ -1009,38 +1064,102 @@ export default function HomePage() {
                         </div>
                       )}
 
-                      {/* Evidence Bar */}
-                      <div className="evidence-bar-row">
-                        <div className="officer-info">
-                          <span>Petugas:</span> <strong>{existingTx.petugas_name}</strong>
-                        </div>
-                        {existingTx.drive_view_url && (
+                      {/* Photo Thumbnail & Officer Information Strip */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          marginTop: '6px',
+                          padding: '10px 12px',
+                          background: '#FFFFFF',
+                          borderRadius: '14px',
+                          border: '1px solid #E2E8F0',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                        }}
+                      >
+                        {existingTx.drive_file_id ? (
                           <a
-                            href={existingTx.drive_view_url}
+                            href={`/photo/${existingTx.drive_file_id}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="photo-evidence-thumb-btn"
+                            title="Klik untuk melihat foto resolusi penuh"
+                            style={{
+                              position: 'relative',
+                              display: 'block',
+                              width: '56px',
+                              height: '56px',
+                              borderRadius: '10px',
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                              border: '1.5px solid #CBD5E1',
+                              backgroundColor: '#F1F5F9'
+                            }}
                           >
+                            <img
+                              src={`https://drive.google.com/thumbnail?id=${existingTx.drive_file_id}&sz=w200`}
+                              alt="Foto Bukti"
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
                             <div
                               style={{
-                                width: '22px',
-                                height: '22px',
-                                borderRadius: '6px',
-                                background: existingTx.status_suhu === 'MELEBIHI_BATAS' ? '#DC2626' : '#1E293B',
+                                position: 'absolute',
+                                bottom: '2px',
+                                right: '2px',
+                                background: 'rgba(0,0,0,0.6)',
+                                borderRadius: '4px',
+                                padding: '2px 4px',
                                 display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#FFFFFF'
+                                alignItems: 'center'
                               }}
                             >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-                                <circle cx="12" cy="13" r="3"/>
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5">
+                                <path d="M15 3h6v6"/>
+                                <path d="M10 14 21 3"/>
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                               </svg>
                             </div>
-                            <span>Lihat Foto ↗</span>
                           </a>
-                        )}
+                        ) : null}
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Petugas:</span>
+                            <span style={{ fontSize: '12.5px', color: '#0F172A', fontWeight: 700 }}>
+                              {existingTx.petugas_name}
+                            </span>
+                          </div>
+                          {existingTx.drive_view_url && (
+                            <a
+                              href={existingTx.drive_view_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                fontSize: '11.5px',
+                                fontWeight: 700,
+                                color: 'var(--ios-blue)',
+                                textDecoration: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <span>Buka File di Google Drive</span>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                <polyline points="15 3 21 3 21 9"/>
+                                <line x1="10" y1="14" x2="21" y2="3"/>
+                              </svg>
+                            </a>
+                          )}
+                        </div>
                       </div>
 
                       {/* Card Footer */}
