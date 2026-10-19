@@ -430,7 +430,10 @@ function AdminPageContent() {
 
   async function handleAddLocation(e: React.FormEvent) {
     e.preventDefault();
-    if (!newLocName.trim()) return;
+    if (!newLocName.trim()) {
+      alert('Silakan ketik nama titik lokasi terlebih dahulu pada kolom isian.');
+      return;
+    }
     setMasterSaving(true);
     try {
       const res = await fetch('/api/admin/master', {
@@ -505,7 +508,10 @@ function AdminPageContent() {
 
   async function handleAddPeriod(e: React.FormEvent) {
     e.preventDefault();
-    if (!newPeriodLabel.trim()) return;
+    if (!newPeriodLabel.trim()) {
+      alert('Silakan ketik label jadwal shift terlebih dahulu pada kolom isian.');
+      return;
+    }
     setMasterSaving(true);
     try {
       const res = await fetch('/api/admin/master', {
@@ -1004,23 +1010,40 @@ function AdminPageContent() {
                         </span>
                       </div>
 
-                      <form onSubmit={handleAddLocation} style={{ display: 'flex', gap: '8px' }}>
-                        <input
-                          type="text"
-                          placeholder="Nama titik (misal: Chiller B / Storage 2)"
-                          value={newLocName}
-                          onChange={(e) => setNewLocName(e.target.value)}
-                          className="apple-input-text"
-                          style={{ flex: 1, padding: '8px 12px', fontSize: '12.5px' }}
-                        />
-                        <button
-                          type="submit"
-                          disabled={masterSaving || !newLocName.trim()}
-                          className="btn-action-primary"
-                          style={{ whiteSpace: 'nowrap', padding: '8px 16px' }}
-                        >
-                          + Tambah
-                        </button>
+                      <form
+                        onSubmit={handleAddLocation}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          background: '#F8FAFC',
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          border: '1px solid var(--ios-border)'
+                        }}
+                      >
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ios-ink)' }}>
+                          Tambah Titik Pantau Baru
+                        </label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ketik nama titik di sini (misal: Chiller B / Storage 2)"
+                            value={newLocName}
+                            onChange={(e) => setNewLocName(e.target.value)}
+                            className="apple-input-text"
+                            style={{ flex: 1, padding: '9px 12px', fontSize: '13px' }}
+                          />
+                          <button
+                            type="submit"
+                            disabled={masterSaving}
+                            className="btn-action-primary"
+                            style={{ whiteSpace: 'nowrap', padding: '9px 18px', fontSize: '13px' }}
+                          >
+                            {masterSaving ? 'Menyimpan...' : '+ Tambah'}
+                          </button>
+                        </div>
                       </form>
 
                       <div className="apple-table-wrap">
@@ -1108,23 +1131,40 @@ function AdminPageContent() {
                         </span>
                       </div>
 
-                      <form onSubmit={handleAddPeriod} style={{ display: 'flex', gap: '8px' }}>
-                        <input
-                          type="text"
-                          placeholder="Label shift (misal: 20.00 / Malam 20:00 - 21:00)"
-                          value={newPeriodLabel}
-                          onChange={(e) => setNewPeriodLabel(e.target.value)}
-                          className="apple-input-text"
-                          style={{ flex: 1, padding: '8px 12px', fontSize: '12.5px' }}
-                        />
-                        <button
-                          type="submit"
-                          disabled={masterSaving || !newPeriodLabel.trim()}
-                          className="btn-action-primary"
-                          style={{ whiteSpace: 'nowrap', padding: '8px 16px' }}
-                        >
-                          + Tambah
-                        </button>
+                      <form
+                        onSubmit={handleAddPeriod}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          background: '#F8FAFC',
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          border: '1px solid var(--ios-border)'
+                        }}
+                      >
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ios-ink)' }}>
+                          Tambah Jadwal Shift Baru
+                        </label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ketik label shift di sini (misal: 20.00 / Malam 20:00 - 21:00)"
+                            value={newPeriodLabel}
+                            onChange={(e) => setNewPeriodLabel(e.target.value)}
+                            className="apple-input-text"
+                            style={{ flex: 1, padding: '9px 12px', fontSize: '13px' }}
+                          />
+                          <button
+                            type="submit"
+                            disabled={masterSaving}
+                            className="btn-action-primary"
+                            style={{ whiteSpace: 'nowrap', padding: '9px 18px', fontSize: '13px' }}
+                          >
+                            {masterSaving ? 'Menyimpan...' : '+ Tambah'}
+                          </button>
+                        </div>
                       </form>
 
                       <div className="apple-table-wrap">

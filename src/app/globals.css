@@ -2128,6 +2128,12 @@ html, body {
 .btn-action-primary:active {
   transform: scale(0.96);
 }
+.btn-action-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none !important;
+}
 
 .btn-action-secondary {
   display: inline-flex;
