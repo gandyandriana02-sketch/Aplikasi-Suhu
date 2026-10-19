@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Modul 02: Form Catat Suhu Utama — Prototype</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <style>
+    /* DESIGN TOKENS (docs/DESIGN.md) */
+    :root {
+      --ink: #1B262C;
+      --ink-muted: #64748B;
+      --surface: #F8FAFC;
+      --surface-raised: #FFFFFF;
+      --line: #E2E8F0;
+      --line-focus: #1565A6;
+      --primary: #1565A6;
+      --primary-hover: #0E4E82;
+      --primary-active: #0A3C64;
+      --ok: #1B7F4B;
+      --ok-tint: #E3F4EA;
+      --over: #DC2626;
+      --over-tint: #FEE2E2;
+      --fail: #D97706;
+      --fail-tint: #FEF3C7;
+      --radius-control: 8px;
+      --radius-card: 14px;
+      --font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: #0F172A;
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .num {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'tnum' 1;
+    }
+
+    /* TESTER TOOLBAR (UNTUK REVIEW & SIMULASI INTERAKTIF) */
+    .tester-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      width: 100%;
+      background: #1E293B;
+      border-bottom: 1px solid #334155;
+      padding: 8px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 11px;
+      color: #94A3B8;
+    }
+
+    .tester-group {
+      display: inline-flex;
+      align-items: center;
+      background: #0F172A;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      padding: 2px 4px;
+      gap: 4px;
+    }
+
+    .tester-btn {
+      background: transparent;
+      color: #94A3B8;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+    .tester-btn.active {
+      background: var(--primary);
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    .tester-action-btn {
+      background: #334155;
+      color: #FFFFFF;
+      border: 1px solid #475569;
+      padding: 4px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .tester-action-btn:hover {
+      background: var(--primary);
+    }
+
+    /* DEVICE SHELL CONTAINER */
+    .device-shell {
+      width: 100%;
+      max-width: 500px;
+      background-color: var(--surface);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      padding-bottom: 90px; /* Space for Sticky Batch Save & Bottom Nav */
+    }
+
+    /* APP HEADER */
+    .app-header {
+      background-color: #FFFFFF;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #1565A6 0%, #0284C7 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+    }
+
+    .user-profile-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background-color: var(--surface);
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .role-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
+      background: #E2E8F0;
+      color: #475569;
+    }
+    .role-badge.admin {
+      background: #E0F2FE;
+      color: #0369A1;
+    }
+
+    /* MAIN CONTENT WRAPPER */
+    .main-content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* DATE LOCKED BANNER */
+    .locked-banner {
+      background-color: var(--over-tint);
+      border: 1px solid var(--over);
+      border-radius: var(--radius-card);
+      padding: 14px;
+      color: var(--over);
+      font-size: 13.5px;
+      line-height: 1.4;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    /* SECTION 1: WAREHOUSE & DATE & SHIFT NAV */
+    .meta-card {
+      background-color: var(--surface-raised);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--line);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .warehouse-switch-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: var(--ink);
+      cursor: pointer;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .warehouse-switch-pill:hover {
+      border-color: var(--primary);
+    }
+
+    .date-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .current-date-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .admin-date-input {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: var(--radius-control);
+      border: 1.5px solid var(--line);
+      background: #FFFFFF;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .admin-date-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* PERIOD (SHIFT) TABS */
+    .period-tabs-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink-muted);
+      margin-bottom: 6px;
+    }
+
+    .period-tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .period-tab {
+      flex: 1;
+      padding: 10px 8px;
+      border-radius: var(--radius-control);
+      border: 1.5px solid var(--line);
+      background: var(--surface-raised);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s ease;
+    }
+    .period-tab:hover {
+      border-color: #CBD5E1;
+    }
+    .period-tab.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #FFFFFF;
+    }
+    .period-tab-status {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--ink-muted);
+    }
+    .period-tab.active .period-tab-status {
+      color: #E1EBF2;
+    }
+
+    /* INSPECTION PROGRESS BAR */
+    .progress-box {
+      padding: 10px 14px;
+      background: var(--surface);
+      border-radius: var(--radius-control);
+      border: 1px solid var(--line);
+    }
+    .progress-box.complete {
+      background: var(--ok-tint);
+      border-color: var(--ok);
+    }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .progress-bar-track {
+      height: 6px;
+      background: var(--line);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+    .progress-box.complete .progress-bar-fill {
+      background: var(--ok);
+    }
+
+    /* SECTION TITLE */
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* LOCATION CARDS */
+    .location-card {
+      background: var(--surface-raised);
+      border-radius: var(--radius-card);
+      border: 1.5px solid var(--line);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: border-color 0.2s ease;
+    }
+    .location-card.border-ok {
+      border-color: var(--ok);
+    }
+    .location-card.border-over {
+      border-color: var(--over);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .location-name-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .loc-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .loc-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    /* STATUS BADGES (DESIGN.md 4.1) */
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    .badge-empty {
+      background: #F1F5F9;
+      color: #64748B;
+      border: 1px solid #CBD5E1;
+    }
+    .badge-ok {
+      background: var(--ok-tint);
+      color: var(--ok);
+      border: 1px solid #86EFAC;
+    }
+    .badge-over {
+      background: var(--over-tint);
+      color: var(--over);
+      border: 1px solid #FCA5A5;
+    }
+
+    /* INPUT FORM FOR RECORDING */
+    .input-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .temp-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .temp-input {
+      width: 140px;
+      height: 52px;
+      border-radius: var(--radius-control);
+      border: 1.5px solid var(--line);
+      background: #FFFFFF;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--ink);
+      padding: 0 14px;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+    .temp-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(21, 101, 166, 0.12);
+    }
+    .temp-input.overlimit {
+      border-color: var(--over);
+      color: var(--over);
+      background: #FEF2F2;
+    }
+    .temp-unit {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+
+    /* OVERLIMIT WARNING ALERT */
+    .overlimit-alert {
+      display: none;
+      margin-top: 8px;
+      background: var(--over-tint);
+      border: 1px solid #FCA5A5;
+      color: var(--over);
+      padding: 8px 12px;
+      border-radius: var(--radius-control);
+      font-size: 12px;
+      line-height: 1.4;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* CAMERA CAPTURE BUTTON / PREVIEW */
+    .camera-btn {
+      width: 100%;
+      height: 48px;
+      border: 1.5px dashed var(--primary);
+      background: rgba(21, 101, 166, 0.04);
+      color: var(--primary);
+      border-radius: var(--radius-control);
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .camera-btn:hover {
+      background: rgba(21, 101, 166, 0.08);
+    }
+
+    .photo-ready-preview {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--ok-tint);
+      border: 1px solid #86EFAC;
+      border-radius: var(--radius-control);
+      padding: 8px 12px;
+    }
+    .photo-thumb {
+      width: 56px;
+      height: 44px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid var(--ok);
+    }
+    .photo-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .photo-info-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--ok);
+    }
+    .photo-info-meta {
+      font-size: 11px;
+      color: var(--ink-muted);
+    }
+
+    /* SAVE SINGLE BUTTON */
+    .btn-save-loc {
+      width: 100%;
+      height: 46px;
+      border-radius: var(--radius-control);
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background-color 0.15s ease;
+    }
+    .btn-save-loc:hover {
+      background: var(--primary-hover);
+    }
+    .btn-save-loc:disabled {
+      background: #CBD5E1;
+      cursor: not-allowed;
+    }
+
+    /* SAVED RECORD DISPLAY */
+    .saved-box {
+      background: var(--surface);
+      border-radius: var(--radius-control);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .saved-row-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+    .saved-temp-val {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .saved-temp-val.normal {
+      color: var(--ok);
+    }
+    .saved-temp-val.over {
+      color: var(--over);
+    }
+
+    .saved-meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    /* WA ALERT PILL */
+    .wa-badge {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: var(--radius-control);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .wa-badge.sent {
+      background: var(--ok-tint);
+      color: var(--ok);
+      border: 1px solid #86EFAC;
+    }
+    .wa-badge.failed {
+      background: var(--over-tint);
+      color: var(--over);
+      border: 1px solid #FCA5A5;
+    }
+
+    .saved-action-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+      margin-top: 4px;
+    }
+
+    .btn-edit-admin {
+      background: #FFFFFF;
+      border: 1.5px solid var(--primary);
+      color: var(--primary);
+      padding: 6px 14px;
+      border-radius: var(--radius-control);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-edit-admin:hover {
+      background: rgba(21, 101, 166, 0.05);
+    }
+
+    .member-locked-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    /* STICKY BOTTOM BATCH SAVE BAR (FR-010) */
+    .batch-save-bar {
+      position: fixed;
+      bottom: 58px; /* Above BottomNav */
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 500px;
+      background: #FFFFFF;
+      border-top: 1.5px solid var(--line);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 -4px 14px rgba(0,0,0,0.06);
+      z-index: 45;
+    }
+
+    .btn-save-all {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-control);
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-save-all:disabled {
+      background: #CBD5E1;
+      cursor: not-allowed;
+    }
+
+    /* BOTTOM NAV BAR */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 500px;
+      height: 58px;
+      background: #FFFFFF;
+      border-top: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 50;
+    }
+
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--ink-muted);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .nav-item.active {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    /* MODAL DIALOGS */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-sheet {
+      background: #FFFFFF;
+      width: 100%;
+      max-width: 440px;
+      border-radius: var(--radius-card);
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: modalSlideUp 0.2s ease-out;
+    }
+
+    @keyframes modalSlideUp {
+      from { transform: translateY(16px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .modal-desc {
+      font-size: 13px;
+      color: var(--ink-muted);
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      top: 56px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--ok);
+      color: #FFFFFF;
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 3000;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #FFFFFF;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- 1. TESTER TOOLBAR (UNTUK REVIEW & SIMULASI INTERAKTIF) -->
+  <div class="tester-toolbar">
+    <span>Desain:</span>
+    <span class="tester-btn active" style="font-weight:700; color:#FFFFFF; background:var(--primary);">v1 (Standard)</span>
+    <a href="../v2/index.html" class="tester-btn" style="text-decoration:none; color:#94A3B8;">v2 (Apple Store Flow)</a>
+
+    <span style="margin-left: 8px;">Simulasi Role:</span>
+    <div class="tester-group">
+      <button class="tester-btn active" id="btnRoleMember" onclick="setRole('MEMBER')">Member</button>
+      <button class="tester-btn" id="btnRoleAdmin" onclick="setRole('ADMIN')">Admin</button>
+    </div>
+
+    <span>Status Tanggal:</span>
+    <div class="tester-group">
+      <button class="tester-btn active" id="btnLockOpen" onclick="setDateLock(false)">Terbuka</button>
+      <button class="tester-btn" id="btnLockClosed" onclick="setDateLock(true)">Terkunci</button>
+    </div>
+
+    <button class="tester-action-btn" onclick="prefillLokasi3()">⚡ Isi Otomatis Lokasi 3</button>
+    <button class="tester-action-btn" onclick="resetDemo()">↺ Reset</button>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastSuccess" class="toast">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="toastMsg">Data berhasil disimpan!</span>
+  </div>
+
+  <!-- 2. DEVICE SHELL CONTAINER (MOBILE VIEWPORT) -->
+  <div class="device-shell">
+
+    <!-- APP HEADER -->
+    <header class="app-header">
+      <div class="brand-title">
+        <div class="brand-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+            <circle cx="11.5" cy="16.5" r="2" fill="#FFFFFF"/>
+          </svg>
+        </div>
+        <span>Warehouse Temp</span>
+      </div>
+
+      <div class="user-profile-badge" onclick="alert('Menu profil & pindah warehouse dapat diakses di Modul 04')">
+        <span id="userFullName" style="font-weight: 600;">Budi Santoso</span>
+        <span class="role-badge" id="roleBadge">MEMBER</span>
+      </div>
+    </header>
+
+    <!-- MAIN SCROLLABLE CONTENT -->
+    <main class="main-content">
+
+      <!-- LOCK BANNER (FR-007, BR-02) -->
+      <div id="lockBanner" class="locked-banner" style="display: none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0;">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <div>
+          <strong>Input hari ini ditutup.</strong> Periode pencatatan telah dikunci oleh Admin pusat untuk audit berkala.
+        </div>
+      </div>
+
+      <!-- SECTION 1: WAREHOUSE, DATE & SHIFT NAV -->
+      <section class="meta-card">
+        
+        <!-- Warehouse Selector Pill -->
+        <div class="warehouse-switch-pill" onclick="openWarehouseModal()">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 21h18M3 7v14M21 7v14M6 11h4M6 15h4M14 11h4M14 15h4M12 3l9 4H3l9-4z"/></svg>
+            <span style="font-weight:700; color:var(--primary);" id="curWhCode">WH-JKT-01</span>
+            <span>—</span>
+            <span id="curWhName">Central Warehouse Jakarta</span>
+          </div>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+
+        <!-- Date Row -->
+        <div class="date-row">
+          <div>
+            <span style="font-size: 11px; color: var(--ink-muted); display: block;">Tanggal Pemeriksaan</span>
+            <div class="current-date-text">
+              <span id="dateDisplay">Senin, 19 Oktober 2026</span>
+              <span style="font-size: 11px; font-weight: 600; color: var(--ok); background: var(--ok-tint); padding: 2px 6px; border-radius: 8px;">HARI INI</span>
+            </div>
+          </div>
+
+          <!-- Admin Date Picker (FR-007: Hanya untuk Admin) -->
+          <div id="adminDatePickerWrap" style="display: none;">
+            <label for="adminDate" style="display:none;">Pilih Tanggal</label>
+            <input type="date" id="adminDate" class="admin-date-input" value="2026-10-19" onchange="changeDate(this.value)">
+          </div>
+        </div>
+
+        <!-- Shift / Period Tabs (FR-007) -->
+        <div>
+          <div class="period-tabs-label">Jadwal Pemeriksaan:</div>
+          <div class="period-tabs">
+            <button class="period-tab active" id="tabPagi" onclick="selectShift('PAGI')">
+              <span class="num">Pagi</span>
+              <span class="period-tab-status num" id="statusPagi">2/4 selesai</span>
+            </button>
+            <button class="period-tab" id="tabSiang" onclick="selectShift('SIANG')">
+              <span class="num">Siang</span>
+              <span class="period-tab-status num" id="statusSiang">0/4 selesai</span>
+            </button>
+            <button class="period-tab" id="tabSore" onclick="selectShift('SORE')">
+              <span class="num">Sore</span>
+              <span class="period-tab-status num" id="statusSore">0/4 selesai</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Progress Track -->
+        <div class="progress-box" id="progressBox">
+          <div class="progress-header">
+            <span id="progressLabel">Pemeriksaan Shift Pagi: 2 dari 4 lokasi</span>
+            <span class="num" style="color:var(--primary);" id="progressPct">50%</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progressBarFill" style="width: 50%;"></div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- SECTION TITLE -->
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h2 class="section-title">Daftar Lokasi Pemeriksaan</h2>
+        <span style="font-size: 12px; color: var(--ink-muted);">Batas: <strong>25,0°C</strong></span>
+      </div>
+
+      <!-- LIST OF 4 LOCATION CARDS -->
+
+      <!-- KARTU 1: STORAGE CHILLER A (STATUS: SUDAH TERCATAT NORMAL) -->
+      <div class="location-card border-ok" id="cardLoc1">
+        <div class="card-top">
+          <div class="location-name-group">
+            <div class="loc-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <span class="loc-title">Storage Chiller A</span>
+          </div>
+          <span class="badge badge-ok">NORMAL (≤ 25°C)</span>
+        </div>
+
+        <!-- Saved Data Box (BR-03: Immutability) -->
+        <div class="saved-box">
+          <div class="saved-row-top">
+            <div>
+              <span style="font-size: 11px; color: var(--ink-muted); display: block;">Suhu Tercatat:</span>
+              <div class="saved-temp-val normal num">
+                <span>23,4</span><span style="font-size: 18px; margin-left: 2px;">°C</span>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 11px; color: var(--ink-muted); display: block;">Waktu Simpan:</span>
+              <span class="num" style="font-size: 13px; font-weight: 600;">08:14 WIB</span>
+            </div>
+          </div>
+
+          <div class="saved-meta-row">
+            <span>Petugas: <strong>Budi Santoso</strong></span>
+            <span style="color: var(--ok); font-weight: 600;">Foto Terverifikasi (Drive)</span>
+          </div>
+
+          <!-- Action bar -->
+          <div class="saved-action-bar">
+            <!-- If Member: Locked label -->
+            <div class="member-locked-label" id="lockedLoc1">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>Terkunci untuk Member (BR-03)</span>
+            </div>
+
+            <!-- If Admin: Edit Button (FR-012) -->
+            <button type="button" class="btn-edit-admin" id="btnEditLoc1" style="display: none;" onclick="openEditModal('Storage Chiller A', '23,4')">
+              Ubah Data
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KARTU 2: STORAGE FREEZER B (STATUS: SUDAH TERCATAT MELEBIHI BATAS + NOTIFIKASI WA) -->
+      <div class="location-card border-over" id="cardLoc2">
+        <div class="card-top">
+          <div class="location-name-group">
+            <div class="loc-icon" style="color: var(--over);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <span class="loc-title">Storage Freezer B</span>
+          </div>
+          <span class="badge badge-over">MELEBIHI BATAS (> 25°C)</span>
+        </div>
+
+        <div class="saved-box">
+          <div class="saved-row-top">
+            <div>
+              <span style="font-size: 11px; color: var(--over); display: block;">Suhu Melebihi Batas:</span>
+              <div class="saved-temp-val over num">
+                <span>27,8</span><span style="font-size: 18px; margin-left: 2px;">°C</span>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 11px; color: var(--ink-muted); display: block;">Waktu Simpan:</span>
+              <span class="num" style="font-size: 13px; font-weight: 600;">08:22 WIB</span>
+            </div>
+          </div>
+
+          <!-- WA Alert SENT (FR-014) -->
+          <div class="wa-badge sent">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              <span>Notifikasi WhatsApp Terkirim</span>
+            </div>
+            <span class="num" style="font-size: 11px; font-weight: 700;">SENT</span>
+          </div>
+
+          <div class="saved-meta-row">
+            <span>Petugas: <strong>Budi Santoso</strong></span>
+            <span style="color: var(--primary); font-weight: 600;">Foto Terverifikasi</span>
+          </div>
+
+          <div class="saved-action-bar">
+            <div class="member-locked-label" id="lockedLoc2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>Terkunci untuk Member (BR-03)</span>
+            </div>
+
+            <button type="button" class="btn-edit-admin" id="btnEditLoc2" style="display: none;" onclick="openEditModal('Storage Freezer B', '27,8')">
+              Ubah Data
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KARTU 3: AREA LOADING DOCK (STATUS: BELUM DIISI — INTERAKTIF!) -->
+      <div class="location-card" id="cardLoc3">
+        <div class="card-top">
+          <div class="location-name-group">
+            <div class="loc-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <span class="loc-title">Area Loading Dock</span>
+          </div>
+          <span class="badge badge-empty" id="badgeLoc3">BELUM DIISI</span>
+        </div>
+
+        <!-- FORM INPUT SUHU & FOTO (FR-008) -->
+        <div id="formLoc3" style="display: flex; flex-direction: column; gap: 14px;">
+          
+          <!-- Suhu Input -->
+          <div>
+            <label class="input-label" for="inputSuhuLoc3">Input Nilai Suhu (°C):</label>
+            <div class="temp-input-wrap">
+              <input
+                type="text"
+                id="inputSuhuLoc3"
+                class="temp-input num"
+                placeholder="24,5"
+                inputmode="decimal"
+                oninput="onTempInputLoc3(this.value)"
+              >
+              <span class="temp-unit">°C</span>
+            </div>
+
+            <!-- Overlimit Alert Dynamic -->
+            <div id="alertOverlimitLoc3" class="overlimit-alert">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span><strong>Perhatian:</strong> Suhu melebihi batas (25,0°C). Notifikasi WhatsApp darurat akan otomatis dikirim ke grup!</span>
+            </div>
+          </div>
+
+          <!-- Camera Capture Section (FR-008, BR-05) -->
+          <div>
+            <label class="input-label">Foto Bukti Termometer (Kamera):</label>
+            
+            <!-- Default: Camera Trigger Button -->
+            <div id="cameraTriggerLoc3">
+              <button type="button" class="camera-btn" onclick="takePhotoLoc3()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <span>Ambil Foto Kamera (capture="environment")</span>
+              </button>
+            </div>
+
+            <!-- Photo Preview State (When Photo Captured) -->
+            <div id="photoPreviewLoc3" class="photo-ready-preview" style="display: none;">
+              <!-- Simulated Canvas Thermometer Photo -->
+              <canvas id="canvasLoc3" width="72" height="56" class="photo-thumb"></canvas>
+              <div class="photo-info">
+                <div class="photo-info-title">✓ Foto Bukti Siap</div>
+                <div class="photo-info-meta" id="photoMetaLoc3">142 KB • GPS Verified (-6.1751, 106.8650)</div>
+              </div>
+              <button type="button" style="background:none; border:none; color:var(--primary); font-size:12px; font-weight:700; cursor:pointer;" onclick="takePhotoLoc3()">
+                Ulangi
+              </button>
+            </div>
+          </div>
+
+          <!-- Simpan Lokasi Action Button (FR-009) -->
+          <button type="button" id="btnSaveLoc3" class="btn-save-loc" onclick="saveLocation3()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span>Simpan Lokasi</span>
+          </button>
+
+        </div>
+
+        <!-- Saved State for Lokasi 3 (Hidden until saved) -->
+        <div id="savedBoxLoc3" class="saved-box" style="display: none;">
+          <div class="saved-row-top">
+            <div>
+              <span style="font-size: 11px; color: var(--ink-muted); display: block;">Suhu Tercatat:</span>
+              <div class="saved-temp-val normal num" id="savedTempValLoc3">
+                <span>--</span><span style="font-size: 18px; margin-left: 2px;">°C</span>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 11px; color: var(--ink-muted); display: block;">Waktu Simpan:</span>
+              <span class="num" style="font-size: 13px; font-weight: 600;">Baru saja</span>
+            </div>
+          </div>
+          <div class="saved-meta-row">
+            <span>Petugas: <strong id="savedPetugasLoc3">Budi Santoso</strong></span>
+            <span style="color: var(--ok); font-weight: 600;">Foto Terverifikasi</span>
+          </div>
+          <div class="saved-action-bar">
+            <div class="member-locked-label" id="lockedLoc3">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>Terkunci untuk Member (BR-03)</span>
+            </div>
+            <button type="button" class="btn-edit-admin" id="btnEditLoc3" style="display: none;" onclick="openEditModal('Area Loading Dock', document.getElementById('inputSuhuLoc3').value)">
+              Ubah Data
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- KARTU 4: GUDANG TRANSIT (STATUS: BELUM DIISI) -->
+      <div class="location-card" id="cardLoc4">
+        <div class="card-top">
+          <div class="location-name-group">
+            <div class="loc-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <span class="loc-title">Gudang Transit</span>
+          </div>
+          <span class="badge badge-empty">BELUM DIISI</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div>
+            <label class="input-label">Input Nilai Suhu (°C):</label>
+            <div class="temp-input-wrap">
+              <input type="text" class="temp-input num" placeholder="23,0" inputmode="decimal" id="inputSuhuLoc4">
+              <span class="temp-unit">°C</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="input-label">Foto Bukti Termometer:</label>
+            <button type="button" class="camera-btn" onclick="alert('Simulasi kamera aktif! Coba pada Kartu 3 di atas untuk alur lengkap.')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span>Ambil Foto Kamera</span>
+            </button>
+          </div>
+
+          <button type="button" class="btn-save-loc" onclick="alert('Isi suhu dan foto terlebih dahulu!')">
+            <span>Simpan Lokasi</span>
+          </button>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- STICKY BATCH SAVE BAR (FR-010) -->
+    <div class="batch-save-bar" id="batchSaveBar">
+      <div>
+        <span style="font-size: 11px; color: var(--ink-muted); display: block;">Simpan Massal (FR-010):</span>
+        <span style="font-size: 13px; font-weight: 700; color: var(--ink);" id="batchReadyText">Siap disimpan: 0 lokasi</span>
+      </div>
+      <button type="button" class="btn-save-all" id="btnSaveAll" disabled onclick="saveAllBatch()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        <span id="btnSaveAllText">Simpan Semua</span>
+      </button>
+    </div>
+
+    <!-- MOBILE BOTTOM NAVIGATION -->
+    <nav class="bottom-nav">
+      <div class="nav-item" onclick="alert('Menuju Dashboard (Modul 05)')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-item active">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/><circle cx="11.5" cy="16.5" r="2"/></svg>
+        <span>Catat Suhu</span>
+      </div>
+      <div class="nav-item" onclick="alert('Menuju Rekap Bulanan (Modul 06)')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span>Rekap</span>
+      </div>
+      <div class="nav-item" id="navAdmin" style="display: none;" onclick="alert('Menuju Admin Master Panel (Modul 07)')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>Admin</span>
+      </div>
+    </nav>
+
+  </div>
+
+  <!-- 3. MODAL: ADMIN UBAH DATA (FR-012, DESIGN.md 5.5) -->
+  <div class="modal-overlay" id="modalEditAdmin">
+    <div class="modal-sheet">
+      <div>
+        <h3 class="modal-title">Ubah Data Transaksi</h3>
+        <p class="modal-desc" id="modalEditSub">Lokasi: Storage Chiller A | Shift Pagi</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div>
+          <label class="input-label">Suhu Saat Ini (Hanya Baca):</label>
+          <input type="text" id="editCurrSuhu" readonly disabled class="clean-input num" style="width:100%; height:44px; background:#F1F5F9; border:1px solid var(--line); border-radius:8px; padding:0 12px; font-weight:600; color:var(--ink-muted);" value="23,4 °C">
+        </div>
+
+        <div>
+          <label class="input-label" for="editNewSuhu">Suhu Baru (°C): <span style="color:var(--over);">*</span></label>
+          <input type="text" id="editNewSuhu" class="clean-input num" style="width:100%; height:44px; border:1.5px solid var(--line); border-radius:8px; padding:0 12px; font-size:16px; font-weight:700;" placeholder="Contoh: 22,8">
+        </div>
+
+        <div>
+          <label class="input-label" for="editReason">Alasan Perubahan Data: <span style="color:var(--over);">*</span></label>
+          <textarea id="editReason" rows="3" style="width:100%; border:1.5px solid var(--line); border-radius:8px; padding:8px 12px; font-family:inherit; font-size:13px; resize:none;" placeholder="Wajib diisi untuk audit trail (contoh: Salah ketik desimal / Re-kalibrasi alat)"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+        <button type="button" class="btn-support-outline" style="width:auto; padding:8px 16px; border:1px solid var(--line); color:var(--ink-muted); background:none; border-radius:8px; font-weight:600; cursor:pointer;" onclick="closeEditModal()">
+          Batal
+        </button>
+        <button type="button" class="btn-save-loc" style="width:auto; padding:8px 18px; border-radius:8px;" onclick="saveAdminEdit()">
+          Simpan Perubahan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. MODAL: PINDAH WAREHOUSE (SIMULASI CEPAT) -->
+  <div class="modal-overlay" id="modalWarehouse">
+    <div class="modal-sheet">
+      <div>
+        <h3 class="modal-title">Pilih Gudang Aktif</h3>
+        <p class="modal-desc">Pilih gudang yang menjadi tanggung jawab pemeriksaan Anda:</p>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="padding:12px; border:1.5px solid var(--primary); background:rgba(21,101,166,0.06); border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchWarehouse('WH-JKT-01', 'Central Warehouse Jakarta')">
+          <div>
+            <strong style="color:var(--primary); display:block;">WH-JKT-01</strong>
+            <span style="font-size:13px; color:var(--ink);">Central Warehouse Jakarta</span>
+          </div>
+          <span style="color:var(--primary); font-weight:700;">✓ Aktif</span>
+        </div>
+
+        <div style="padding:12px; border:1px solid var(--line); background:#FFFFFF; border-radius:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchWarehouse('WH-SBY-02', 'Regional Hub Surabaya')">
+          <div>
+            <strong style="color:var(--ink); display:block;">WH-SBY-02</strong>
+            <span style="font-size:13px; color:var(--ink-muted);">Regional Hub Surabaya</span>
+          </div>
+          <span style="font-size:12px; color:var(--ink-muted);">Pilih</span>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end;">
+        <button type="button" style="padding:8px 16px; border:1px solid var(--line); background:none; border-radius:8px; cursor:pointer;" onclick="document.getElementById('modalWarehouse').style.display='none'">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT: LOGIKA & INTERAKSI SIMULASI -->
+  <script>
+    let currentRole = 'MEMBER';
+    let isDateLocked = false;
+    let photoLoc3Ready = false;
+    let editingLocName = '';
+
+    // Switch Role (MEMBER vs ADMIN)
+    function setRole(role) {
+      currentRole = role;
+      document.getElementById('btnRoleMember').classList.toggle('active', role === 'MEMBER');
+      document.getElementById('btnRoleAdmin').classList.toggle('active', role === 'ADMIN');
+
+      const roleBadge = document.getElementById('roleBadge');
+      const userFullName = document.getElementById('userFullName');
+      const adminDateWrap = document.getElementById('adminDatePickerWrap');
+      const navAdmin = document.getElementById('navAdmin');
+
+      if (role === 'ADMIN') {
+        roleBadge.textContent = 'ADMIN';
+        roleBadge.className = 'role-badge admin';
+        userFullName.textContent = 'Admin Suhu';
+        adminDateWrap.style.display = 'block';
+        navAdmin.style.display = 'flex';
+
+        // Tampilkan tombol Ubah Data Admin pada kartu tersimpan
+        document.getElementById('lockedLoc1').style.display = 'none';
+        document.getElementById('btnEditLoc1').style.display = 'block';
+        document.getElementById('lockedLoc2').style.display = 'none';
+        document.getElementById('btnEditLoc2').style.display = 'block';
+        if (document.getElementById('btnEditLoc3')) {
+          document.getElementById('lockedLoc3').style.display = 'none';
+          document.getElementById('btnEditLoc3').style.display = 'block';
+        }
+      } else {
+        roleBadge.textContent = 'MEMBER';
+        roleBadge.className = 'role-badge';
+        userFullName.textContent = 'Budi Santoso';
+        adminDateWrap.style.display = 'none';
+        navAdmin.style.display = 'none';
+
+        // Sembunyikan tombol Ubah Data Admin, tampilkan label Terkunci
+        document.getElementById('lockedLoc1').style.display = 'flex';
+        document.getElementById('btnEditLoc1').style.display = 'none';
+        document.getElementById('lockedLoc2').style.display = 'flex';
+        document.getElementById('btnEditLoc2').style.display = 'none';
+        if (document.getElementById('btnEditLoc3')) {
+          document.getElementById('lockedLoc3').style.display = 'flex';
+          document.getElementById('btnEditLoc3').style.display = 'none';
+        }
+      }
+    }
+
+    // Toggle Date Lock
+    function setDateLock(locked) {
+      isDateLocked = locked;
+      document.getElementById('btnLockOpen').classList.toggle('active', !locked);
+      document.getElementById('btnLockClosed').classList.toggle('active', locked);
+
+      const banner = document.getElementById('lockBanner');
+      banner.style.display = locked ? 'flex' : 'none';
+
+      const inputSuhu = document.getElementById('inputSuhuLoc3');
+      const btnSaveLoc3 = document.getElementById('btnSaveLoc3');
+      const batchBar = document.getElementById('batchSaveBar');
+
+      if (locked) {
+        inputSuhu.disabled = true;
+        btnSaveLoc3.disabled = true;
+        batchBar.style.display = 'none';
+      } else {
+        inputSuhu.disabled = false;
+        btnSaveLoc3.disabled = false;
+        batchBar.style.display = 'flex';
+      }
+    }
+
+    // Dynamic Temp Input Listener
+    function onTempInputLoc3(val) {
+      const num = parseFloat(val.replace(',', '.'));
+      const input = document.getElementById('inputSuhuLoc3');
+      const alertOver = document.getElementById('alertOverlimitLoc3');
+      const badge = document.getElementById('badgeLoc3');
+      const card = document.getElementById('cardLoc3');
+
+      if (!isNaN(num) && val.trim() !== '') {
+        if (num > 25.0) {
+          input.classList.add('overlimit');
+          alertOver.style.display = 'flex';
+          badge.textContent = 'MELEBIHI BATAS';
+          badge.className = 'badge badge-over';
+          card.style.borderColor = 'var(--over)';
+        } else {
+          input.classList.remove('overlimit');
+          alertOver.style.display = 'none';
+          badge.textContent = 'NORMAL';
+          badge.className = 'badge badge-ok';
+          card.style.borderColor = 'var(--ok)';
+        }
+      } else {
+        input.classList.remove('overlimit');
+        alertOver.style.display = 'none';
+        badge.textContent = 'BELUM DIISI';
+        badge.className = 'badge badge-empty';
+        card.style.borderColor = 'var(--line)';
+      }
+      updateBatchBar();
+    }
+
+    // Simulated Camera Snap
+    function takePhotoLoc3() {
+      const canvas = document.getElementById('canvasLoc3');
+      const ctx = canvas.getContext('2d');
+
+      // Draw stylized simulated thermometer camera capture
+      ctx.fillStyle = '#1E293B';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#0284C7';
+      ctx.fillRect(10, 10, 52, 36);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 12px sans-serif';
+      const tempVal = document.getElementById('inputSuhuLoc3').value || '24,5';
+      ctx.fillText(tempVal + '°C', 16, 32);
+
+      // Show preview
+      document.getElementById('cameraTriggerLoc3').style.display = 'none';
+      document.getElementById('photoPreviewLoc3').style.display = 'flex';
+      photoLoc3Ready = true;
+
+      updateBatchBar();
+    }
+
+    // Update Sticky Batch Save Count (FR-010)
+    function updateBatchBar() {
+      const temp = document.getElementById('inputSuhuLoc3').value.trim();
+      const isReady = temp !== '' && photoLoc3Ready;
+      const readyCount = isReady ? 1 : 0;
+
+      const txt = document.getElementById('batchReadyText');
+      const btn = document.getElementById('btnSaveAll');
+      const btnTxt = document.getElementById('btnSaveAllText');
+
+      txt.textContent = `Siap disimpan: ${readyCount} lokasi`;
+      btn.disabled = readyCount === 0;
+      btnTxt.textContent = `Simpan Semua (${readyCount})`;
+    }
+
+    // Save Location 3 (Single Save FR-009)
+    function saveLocation3() {
+      const temp = document.getElementById('inputSuhuLoc3').value.trim();
+      if (!temp) {
+        alert('Silakan masukkan nilai suhu terlebih dahulu!');
+        document.getElementById('inputSuhuLoc3').focus();
+        return;
+      }
+      if (!photoLoc3Ready) {
+        alert('Foto bukti termometer wajib diambil sebelum menyimpan! (BR-05)');
+        return;
+      }
+
+      const btn = document.getElementById('btnSaveLoc3');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Menyimpan...';
+
+      setTimeout(() => {
+        // Complete single save
+        document.getElementById('formLoc3').style.display = 'none';
+        const savedBox = document.getElementById('savedBoxLoc3');
+        savedBox.style.display = 'flex';
+
+        const num = parseFloat(temp.replace(',', '.'));
+        const isOver = num > 25.0;
+        const valElem = document.getElementById('savedTempValLoc3');
+        valElem.innerHTML = `<span>${temp}</span><span style="font-size: 18px; margin-left: 2px;">°C</span>`;
+        valElem.className = isOver ? 'saved-temp-val over num' : 'saved-temp-val normal num';
+
+        // Update progress
+        document.getElementById('statusPagi').textContent = '3/4 selesai';
+        document.getElementById('progressLabel').textContent = 'Pemeriksaan Shift Pagi: 3 dari 4 lokasi';
+        document.getElementById('progressPct').textContent = '75%';
+        document.getElementById('progressBarFill').style.width = '75%';
+
+        showToast(`Suhu Area Loading Dock (${temp}°C) berhasil disimpan!`);
+        updateBatchBar();
+      }, 700);
+    }
+
+    // Batch Save All (FR-010)
+    function saveAllBatch() {
+      const btn = document.getElementById('btnSaveAll');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Menyimpan 1 lokasi...';
+
+      setTimeout(() => {
+        saveLocation3();
+        showToast('Semua lokasi yang siap berhasil disimpan serentak!');
+      }, 800);
+    }
+
+    // Admin Edit Transaction Modal (FR-012)
+    function openEditModal(locName, currSuhu) {
+      editingLocName = locName;
+      document.getElementById('modalEditSub').textContent = `Lokasi: ${locName} | Shift Pagi`;
+      document.getElementById('editCurrSuhu').value = `${currSuhu} °C`;
+      document.getElementById('editNewSuhu').value = '';
+      document.getElementById('editReason').value = '';
+      document.getElementById('modalEditAdmin').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+      document.getElementById('modalEditAdmin').style.display = 'none';
+    }
+
+    function saveAdminEdit() {
+      const newSuhu = document.getElementById('editNewSuhu').value.trim();
+      const reason = document.getElementById('editReason').value.trim();
+
+      if (!newSuhu) {
+        alert('Masukkan nilai suhu baru!');
+        return;
+      }
+      if (!reason) {
+        alert('Alasan perubahan data wajib diisi untuk catatan audit! (FR-012)');
+        return;
+      }
+
+      closeEditModal();
+      showToast(`Data suhu ${editingLocName} berhasil diubah menjadi ${newSuhu}°C (Alasan: ${reason})`);
+    }
+
+    // Warehouse Modal
+    function openWarehouseModal() {
+      document.getElementById('modalWarehouse').style.display = 'flex';
+    }
+    function switchWarehouse(code, name) {
+      document.getElementById('curWhCode').textContent = code;
+      document.getElementById('curWhName').textContent = name;
+      document.getElementById('modalWarehouse').style.display = 'none';
+      showToast(`Pindah ke gudang ${name}`);
+    }
+
+    // Shift selector
+    function selectShift(shift) {
+      document.getElementById('tabPagi').classList.toggle('active', shift === 'PAGI');
+      document.getElementById('tabSiang').classList.toggle('active', shift === 'SIANG');
+      document.getElementById('tabSore').classList.toggle('active', shift === 'SORE');
+
+      if (shift === 'PAGI') {
+        document.getElementById('progressLabel').textContent = 'Pemeriksaan Shift Pagi: 2 dari 4 lokasi';
+        document.getElementById('progressPct').textContent = '50%';
+        document.getElementById('progressBarFill').style.width = '50%';
+        document.getElementById('progressBox').className = 'progress-box';
+      } else {
+        document.getElementById('progressLabel').textContent = `Pemeriksaan Shift ${shift}: 0 dari 4 lokasi`;
+        document.getElementById('progressPct').textContent = '0%';
+        document.getElementById('progressBarFill').style.width = '0%';
+        document.getElementById('progressBox').className = 'progress-box';
+      }
+      showToast(`Beralih ke Shift ${shift}`);
+    }
+
+    // Helper: Toast
+    function showToast(msg) {
+      const toast = document.getElementById('toastSuccess');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.style.display = 'flex';
+      setTimeout(() => { toast.style.display = 'none'; }, 2800);
+    }
+
+    // Helper: Prefill Lokasi 3
+    function prefillLokasi3() {
+      document.getElementById('inputSuhuLoc3').value = '24,2';
+      onTempInputLoc3('24,2');
+      takePhotoLoc3();
+    }
+
+    // Helper: Reset Demo
+    function resetDemo() {
+      location.reload();
+    }
+  </script>
+</body>
+</html>

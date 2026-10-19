@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Modul 04: Modal Pindah Warehouse & Menu Profil Pengguna (Apple HIG Sheet v1.0) — Prototype</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <style>
+    /* 0. AUTHENTIC SF PRO & INTER WEBFONTS (CROSS-PLATFORM PIXEL PERFECT) */
+    @import url('https://fonts.cdnfonts.com/css/sf-pro-display');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    /* APPLE STORE iOS HIG TOKENS & ULTRA-SMOOTH CURVES */
+    :root {
+      --ios-bg: #F2F2F7;
+      --ios-card: #FFFFFF;
+      --ios-ink: #1D1D1F;
+      --ios-muted: #86868B;
+      --ios-subtle: #E5E5EA;
+      --ios-blue: #0071E3;
+      --ios-blue-hover: #0077ED;
+      --ios-blue-tint: #E8F2FD;
+      --ios-green: #34C759;
+      --ios-green-tint: #E8F8ED;
+      --ios-red: #FF3B30;
+      --ios-red-tint: #FEEBEA;
+      --ios-orange: #FF9500;
+      --ios-orange-tint: #FFF4E5;
+      --ios-indigo: #5856D6;
+      --ios-indigo-tint: #EEEDFA;
+      --ios-line: rgba(0, 0, 0, 0.08);
+      --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', -apple-system-headline, sans-serif;
+      --apple-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+      --apple-spring: cubic-bezier(0.2, 0.9, 0.25, 1);
+      --sf-stroke: 1.85px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: #0B1120; /* Slate 950 desktop backdrop */
+      color: var(--ios-ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    .num {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'tnum' 1;
+    }
+
+    /* SF SYMBOL OPTICAL ALIGNMENT */
+    .sf-icon-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      line-height: 1;
+      vertical-align: middle;
+    }
+    .sf-icon {
+      display: block;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* TOP TESTER & AUDIT BAR (STICKY FOR TESTING) */
+    .tester-top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid #334155;
+      padding: 9px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 12px;
+      color: #94A3B8;
+    }
+
+    .version-pill {
+      background: #334155;
+      color: #94A3B8;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 11px;
+      text-decoration: none;
+      transition: all 0.2s var(--apple-smooth);
+    }
+    .version-pill.active {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    .tester-role-group {
+      display: inline-flex;
+      align-items: center;
+      background: #0B1120;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      padding: 2px 3px;
+      gap: 2px;
+    }
+
+    .tester-toggle-btn {
+      background: transparent;
+      color: #94A3B8;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s var(--apple-smooth);
+    }
+    .tester-toggle-btn.active {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    .tester-action-pill {
+      background: #334155;
+      color: #FFFFFF;
+      border: 1px solid #475569;
+      padding: 4px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .tester-action-pill:hover {
+      background: var(--ios-blue);
+    }
+
+    /* DEVICE SHELL CONTAINER (APPLE STORE iOS VIEWPORT) */
+    .device-shell {
+      width: 100%;
+      max-width: 440px;
+      background-color: var(--ios-bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.45);
+      padding-bottom: 150px;
+      transition: background 0.45s var(--apple-smooth);
+    }
+
+    /* SMOOTH APPLE VIEW ENTRANCE (Synchronized content transition) */
+    @keyframes appleViewEnter {
+      from {
+        opacity: 0.88;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* SIMULATED APP BACKGROUND (CATAT SUHU IN THE BACKGROUND) */
+    .simulated-app-bg {
+      animation: appleViewEnter 0.22s var(--apple-smooth) both;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      opacity: 0.9;
+      transition: filter 0.3s var(--apple-smooth);
+    }
+    .device-shell.sheet-open .simulated-app-bg {
+      filter: blur(4px) brightness(0.92);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .bg-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .bg-title-group h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--ios-ink);
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+    .bg-title-group p {
+      font-size: 13px;
+      color: var(--ios-muted);
+      margin-top: 3px;
+    }
+
+    .bg-user-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #FFFFFF;
+      padding: 5px 12px 5px 6px;
+      border-radius: 30px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .bg-user-pill:active {
+      transform: scale(0.96);
+    }
+    .bg-user-pill .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0284C7 0%, #0071E3 100%);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .bg-user-pill .name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ios-ink);
+      line-height: 1.1;
+    }
+    .bg-user-pill .role {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--ios-muted);
+    }
+
+    .bg-mock-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 16px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* APPLE HIG ACTION SHEET / MODAL OVERLAY (BOTTOM SHEET ON MOBILE, SQUIRCLE ON DESKTOP) */
+    .apple-sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.42);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.32s var(--apple-smooth), visibility 0.32s;
+    }
+    .apple-sheet-backdrop.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .apple-sheet-container {
+      background: #F2F2F7;
+      border-radius: 28px 28px 0 0;
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.22);
+      display: flex;
+      flex-direction: column;
+      max-height: 92vh;
+      transform: translateY(100%);
+      transition: transform 0.42s var(--apple-spring);
+      position: relative;
+      overflow: hidden;
+    }
+    .apple-sheet-backdrop.active .apple-sheet-container {
+      transform: translateY(0);
+    }
+
+    /* SHEET DRAG HANDLE GRABBER (APPLE HIG SPEC) */
+    .sheet-grabber-wrap {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      padding-top: 10px;
+      padding-bottom: 6px;
+      cursor: grab;
+    }
+    .sheet-grabber-pill {
+      width: 36px;
+      height: 5px;
+      border-radius: 9999px;
+      background: rgba(60, 60, 67, 0.3);
+    }
+
+    /* SHEET TOP NAVIGATION BAR */
+    .sheet-nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 20px 14px 20px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    .sheet-nav-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--ios-ink);
+      letter-spacing: -0.3px;
+    }
+    .sheet-close-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(118, 118, 128, 0.12);
+      border: none;
+      color: var(--ios-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .sheet-close-btn:hover {
+      background: rgba(118, 118, 128, 0.2);
+      color: var(--ios-ink);
+    }
+
+    /* SHEET SCROLLABLE CONTENT BODY */
+    .sheet-scroll-body {
+      overflow-y: auto;
+      padding: 16px 16px 40px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* PROFILE ID CARD (APPLE PROFILE HERO) */
+    .profile-hero-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 18px 16px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .profile-avatar-large {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0284C7 0%, #0071E3 100%);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 14px rgba(0, 113, 227, 0.3);
+      flex-shrink: 0;
+      transition: all 0.3s var(--apple-smooth);
+    }
+    .profile-hero-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .profile-hero-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ios-ink);
+      line-height: 1.2;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .profile-hero-username {
+      font-size: 13px;
+      color: var(--ios-muted);
+      margin-top: 2px;
+      font-weight: 500;
+    }
+    .profile-badge-role {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      background: var(--ios-blue-tint);
+      color: var(--ios-blue);
+    }
+    .profile-badge-role.admin {
+      background: var(--ios-indigo-tint);
+      color: var(--ios-indigo);
+    }
+
+    /* APPLE INSET GROUPED LIST PATTERN */
+    .inset-group-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .inset-group-header {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ios-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding-left: 12px;
+    }
+    .inset-group-card {
+      background: #FFFFFF;
+      border-radius: 16px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* WAREHOUSE SELECTOR ROWS (FR-019 / FR-018 / BR-04) */
+    .warehouse-select-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 14px;
+      cursor: pointer;
+      position: relative;
+      transition: background-color 0.15s ease;
+      background: transparent;
+      border: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+    .warehouse-select-row:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 56px;
+      right: 0;
+      height: 1px;
+      background: rgba(0, 0, 0, 0.05);
+    }
+    .warehouse-select-row:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+    .warehouse-select-row:active {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+    .warehouse-select-row.active {
+      background-color: rgba(0, 113, 227, 0.04);
+    }
+
+    .wh-row-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .wh-icon-box {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--ios-blue-tint);
+      color: var(--ios-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s var(--apple-smooth);
+    }
+    .warehouse-select-row.active .wh-icon-box {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+    }
+    .wh-text-meta {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .wh-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .wh-code-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--ios-subtle);
+      color: var(--ios-ink);
+    }
+    .warehouse-select-row.active .wh-code-pill {
+      background: var(--ios-blue-tint);
+      color: var(--ios-blue);
+    }
+    .wh-full-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ios-ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .wh-detail-subtitle {
+      font-size: 12px;
+      color: var(--ios-muted);
+      margin-top: 2px;
+    }
+
+    .wh-row-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .wh-status-active-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 12px;
+      background: var(--ios-green-tint);
+      color: var(--ios-green);
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .wh-switch-action-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 14px;
+      background: var(--ios-blue-tint);
+      color: var(--ios-blue);
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .wh-switch-action-pill:hover {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+    }
+
+    /* SINGLE WAREHOUSE NOTICE (BR-04 ENFORCEMENT) */
+    .single-wh-notice {
+      padding: 12px 14px;
+      background: #F8FAFC;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--ios-muted);
+      line-height: 1.4;
+    }
+
+    /* INSET GROUP ACTION ROWS (SETTINGS & ACTIONS) */
+    .inset-action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      cursor: pointer;
+      position: relative;
+      background: transparent;
+      border: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+      transition: background-color 0.15s ease;
+    }
+    .inset-action-row:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 56px;
+      right: 0;
+      height: 1px;
+      background: rgba(0, 0, 0, 0.05);
+    }
+    .inset-action-row:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+    .inset-action-row:active {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    .action-icon-squircle {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      flex-shrink: 0;
+    }
+    .action-icon-squircle.orange { background: var(--ios-orange); }
+    .action-icon-squircle.blue { background: var(--ios-blue); }
+    .action-icon-squircle.green { background: var(--ios-green); }
+    .action-icon-squircle.purple { background: var(--ios-indigo); }
+    .action-icon-squircle.red { background: var(--ios-red); }
+
+    .action-row-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      margin-left: 12px;
+      min-width: 0;
+    }
+    .action-label-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ios-ink);
+    }
+    .action-label-text.destructive {
+      color: var(--ios-red);
+      font-weight: 600;
+    }
+    .action-sub-text {
+      font-size: 12px;
+      color: var(--ios-muted);
+      margin-top: 1px;
+    }
+
+    .action-row-side {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--ios-muted);
+      font-size: 13px;
+    }
+
+    /* FOOTER METADATA */
+    .sheet-footer-credits {
+      text-align: center;
+      font-size: 11px;
+      color: var(--ios-muted);
+      padding: 6px 0 10px 0;
+      line-height: 1.5;
+    }
+
+    /* FLOATING TOAST NOTIFICATION */
+    .apple-floating-toast {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(29, 29, 31, 0.94);
+      backdrop-filter: blur(20px);
+      color: #FFFFFF;
+      padding: 10px 18px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      z-index: 2000;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.35s var(--apple-spring);
+    }
+    .apple-floating-toast.active {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* NESTED MODAL: GANTI PASSWORD (FR-002) */
+    .submodal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      z-index: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.25s var(--apple-smooth);
+    }
+    .submodal-backdrop.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .submodal-box {
+      width: 100%;
+      max-width: 380px;
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transform: scale(0.94);
+      transition: transform 0.28s var(--apple-spring);
+    }
+    .submodal-backdrop.active .submodal-box {
+      transform: scale(1);
+    }
+
+    .apple-field-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .apple-field-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ios-muted);
+    }
+    .apple-input-with-icon {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .apple-text-input {
+      width: 100%;
+      height: 42px;
+      border-radius: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      padding: 0 38px 0 12px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--ios-ink);
+      background: #FBFBFD;
+      transition: all 0.15s ease;
+    }
+    .apple-text-input:focus {
+      outline: none;
+      border-color: var(--ios-blue);
+      background: #FFFFFF;
+      box-shadow: 0 0 0 3px var(--ios-blue-tint);
+    }
+    .apple-eye-btn {
+      position: absolute;
+      right: 8px;
+      background: none;
+      border: none;
+      color: var(--ios-muted);
+      cursor: pointer;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .apple-btn-capsule {
+      height: 44px;
+      border-radius: 22px;
+      background: var(--ios-blue);
+      color: #FFFFFF;
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .apple-btn-capsule:hover {
+      background: var(--ios-blue-hover);
+    }
+    .apple-btn-capsule:active {
+      transform: scale(0.98);
+    }
+
+    .apple-btn-light {
+      height: 44px;
+      border-radius: 22px;
+      background: var(--ios-subtle);
+      color: var(--ios-ink);
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .apple-btn-light:hover {
+      background: #D1D1D6;
+    }
+
+    /* DESTRUCTIVE CONFIRMATION DIALOG (LOGOUT) */
+    .apple-dialog-box {
+      width: 100%;
+      max-width: 320px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      transform: scale(0.92);
+      transition: transform 0.25s var(--apple-spring);
+    }
+    .submodal-backdrop.active .apple-dialog-box {
+      transform: scale(1);
+    }
+    .dialog-header {
+      padding: 22px 20px 14px 20px;
+    }
+    .dialog-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--ios-ink);
+    }
+    .dialog-desc {
+      font-size: 13px;
+      color: var(--ios-muted);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+    .dialog-buttons-col {
+      display: flex;
+      flex-direction: column;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    .dialog-btn {
+      height: 48px;
+      background: transparent;
+      border: none;
+      font-family: inherit;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    .dialog-btn:not(:last-child) {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    .dialog-btn:hover {
+      background-color: rgba(0, 0, 0, 0.04);
+    }
+    .dialog-btn.destructive {
+      color: var(--ios-red);
+      font-weight: 700;
+    }
+    .dialog-btn.cancel {
+      color: var(--ios-blue);
+      font-weight: 600;
+    }
+
+    /* LOADING SPINNER */
+    .apple-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(0, 113, 227, 0.2);
+      border-top-color: var(--ios-blue);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    /* 6. APPLE HIG BOTTOM FLOATING DYNAMIC ISLAND NAVBAR (SYNCHRONIZED WITH DASHBOARD & CATAT SUHU) */
+    .apple-bottom-island {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.18);
+      border-radius: 34px;
+      padding: 5px 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 400;
+      max-width: 90%;
+    }
+
+    .island-tab-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 24px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ios-muted);
+      transition: all 0.25s var(--apple-smooth);
+      cursor: pointer;
+      user-select: none;
+    }
+    .island-tab-item.active {
+      color: var(--ios-blue);
+      background: var(--ios-blue-tint);
+      font-weight: 700;
+    }
+    .island-tab-item:active {
+      transform: scale(0.96);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP TESTER & AUDIT BAR (STICKY FOR TESTING) -->
+  <div class="tester-top-bar">
+    <strong style="color: #F8FAFC;">Modul 04: Pindah Warehouse & Menu Profil</strong>
+    <span style="color: #64748B;">|</span>
+
+    <span>Role:</span>
+    <div class="tester-role-group">
+      <button class="tester-toggle-btn active" id="btnRoleMember" onclick="setRole('MEMBER')">Member (Petugas)</button>
+      <button class="tester-toggle-btn" id="btnRoleAdmin" onclick="setRole('ADMIN')">Admin</button>
+    </div>
+
+    <span>Skenario:</span>
+    <div class="tester-role-group">
+      <button class="tester-toggle-btn active" id="btnScenarioMulti" onclick="setScenario('MULTI')">Multi Gudang</button>
+      <button class="tester-toggle-btn" id="btnScenarioSingle" onclick="setScenario('SINGLE')">Akses Tunggal (BR-04)</button>
+    </div>
+
+    <button class="tester-action-pill" onclick="toggleProfileSheet()">
+      <span class="sf-icon-wrap">
+        <svg class="sf-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </span>
+      Buka Sheet Profil
+    </button>
+
+    <a href="../02-catat-suhu/index.html" class="version-pill">
+      ← Ke Form Suhu (Modul 02)
+    </a>
+  </div>
+
+  <!-- FLOATING TOAST NOTIFICATION -->
+  <div id="toastNotification" class="apple-floating-toast">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34C759" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="toastMsg">Gudang aktif diperbarui ke Cikupa Annex</span>
+  </div>
+
+  <!-- DEVICE CONTAINER (IPHONE VIEWPORT) -->
+  <div class="device-shell" id="deviceShell">
+
+    <!-- SIMULATED BACKGROUND APP (CONTEXTUAL CATAT SUHU) -->
+    <div class="simulated-app-bg" id="simulatedAppBg">
+      <!-- Background Header -->
+      <div class="bg-header-bar">
+        <div class="bg-title-group">
+          <h1>Catat Suhu</h1>
+          <p id="bgActiveWarehouseText">WH-JKT-01 • Cikupa 1 (Central DC)</p>
+        </div>
+
+        <!-- Trigger Button: Profil di Navbar Kanan Atas -->
+        <div class="bg-user-pill" onclick="openProfileSheet()" title="Buka Profil & Pindah Warehouse (FR-019)">
+          <div class="avatar" id="bgAvatar">BS</div>
+          <div class="user-meta">
+            <div class="name" id="bgName">Budi Santoso</div>
+            <div class="role" id="bgRole">Member Lapangan</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mock Temperature Card to prove live context switch -->
+      <div class="bg-mock-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; font-weight:700; color:var(--ios-blue); text-transform:uppercase; letter-spacing:0.5px;" id="mockWhBadge">CK01 — Cikupa 1</span>
+          <span style="font-size:11px; padding:2px 8px; border-radius:12px; background:var(--ios-green-tint); color:var(--ios-green); font-weight:700;">Gudang Terpilih</span>
+        </div>
+        <div style="font-size:16px; font-weight:700; color:var(--ios-ink);" id="mockWhTitle">Titik Pantau: Storage Chiller A</div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+          <div>
+            <span style="font-size:11px; color:var(--ios-muted); display:block;">Target Operasional:</span>
+            <span style="font-size:13px; font-weight:600; color:var(--ios-ink);" id="mockWhLimit">Suhu Maksimal: ≤ 25,0°C</span>
+          </div>
+          <button type="button" class="apple-btn-capsule" style="height:36px; padding:0 14px; font-size:13px;" onclick="openProfileSheet()">
+            Pindah Gudang ↗
+          </button>
+        </div>
+      </div>
+
+      <div style="background:#FFFFFF; border-radius:18px; padding:18px; border:1px solid rgba(0,0,0,0.06); text-align:center; color:var(--ios-muted); font-size:13px;">
+        <p>Ketuk tombol avatar profil di pojok kanan atas atau tombol di atas untuk membuka <strong>Menu Profil & Pindah Warehouse</strong>.</p>
+      </div>
+    </div>
+
+    <!-- APPLE HIG ACTION SHEET / MODAL OVERLAY -->
+    <div class="apple-sheet-backdrop" id="profileSheetBackdrop" onclick="handleBackdropClick(event)">
+      <div class="apple-sheet-container" id="profileSheetContainer">
+        
+        <!-- Grabber handle -->
+        <div class="sheet-grabber-wrap" onclick="closeProfileSheet()">
+          <div class="sheet-grabber-pill"></div>
+        </div>
+
+        <!-- Sheet Header Bar -->
+        <div class="sheet-nav-bar">
+          <span class="sheet-nav-title">Profil & Gudang</span>
+          <button type="button" class="sheet-close-btn" onclick="closeProfileSheet()" aria-label="Tutup Sheet">
+            <svg class="sf-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <!-- Scrollable Sheet Content -->
+        <div class="sheet-scroll-body">
+
+          <!-- 1. USER PROFILE SUMMARY HERO CARD -->
+          <div class="profile-hero-card">
+            <div class="profile-avatar-large" id="profileAvatarLarge">BS</div>
+            <div class="profile-hero-info">
+              <div class="profile-hero-name">
+                <span id="profileFullName">Budi Santoso</span>
+                <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="#34C759" stroke="#FFFFFF" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="16 9 10.5 14.5 8 12"/></svg>
+              </div>
+              <div class="profile-hero-username" id="profileUsername">@budi.santoso • ID: USR-002</div>
+              <div class="profile-badge-role" id="profileRoleBadge">
+                <span class="sf-icon-wrap">
+                  <svg class="sf-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </span>
+                <span id="profileRoleText">Member Lapangan</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. WAREHOUSE SELECTION SECTION (FR-019 / FR-018 / BR-04) -->
+          <div class="inset-group-section">
+            <div class="inset-group-header">Gudang Aktif & Hak Akses (FR-019)</div>
+            
+            <div class="inset-group-card" id="warehouseGroupCard">
+
+              <!-- Warehouse 1: CK01 (Default Gudang) -->
+              <div class="warehouse-select-row active" id="whRowCK01" onclick="selectWarehouse('CK01', 'Cikupa 1 (Central DC)', '≤ 25,0°C')">
+                <div class="wh-row-left">
+                  <div class="wh-icon-box">
+                    <svg class="sf-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M3 21h18"/><path d="M19 21V7l-7-4-7 4v14"/><path d="M9 10h6"/><path d="M9 14h6"/><path d="M9 18h6"/></svg>
+                  </div>
+                  <div class="wh-text-meta">
+                    <div class="wh-name-row">
+                      <span class="wh-code-pill num">CK01</span>
+                      <span class="wh-full-name">Cikupa 1 (Central DC)</span>
+                    </div>
+                    <span class="wh-detail-subtitle">Gudang Utama • 4 Titik Pantau (Batas ≤ 25,0°C)</span>
+                  </div>
+                </div>
+
+                <div class="wh-row-right" id="whActionColCK01">
+                  <span class="wh-status-active-pill">
+                    <svg class="sf-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    Aktif
+                  </span>
+                </div>
+              </div>
+
+              <!-- Warehouse 2: CK02 (Annex Gudang) -->
+              <div class="warehouse-select-row" id="whRowCK02" onclick="selectWarehouse('CK02', 'Cikupa Annex (Storage 2)', '≤ 25,0°C')">
+                <div class="wh-row-left">
+                  <div class="wh-icon-box">
+                    <svg class="sf-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M3 21h18"/><path d="M19 21V7l-7-4-7 4v14"/><path d="M9 10h6"/><path d="M9 14h6"/><path d="M9 18h6"/></svg>
+                  </div>
+                  <div class="wh-text-meta">
+                    <div class="wh-name-row">
+                      <span class="wh-code-pill num">CK02</span>
+                      <span class="wh-full-name">Cikupa Annex (Storage 2)</span>
+                    </div>
+                    <span class="wh-detail-subtitle">Gudang Transit • 3 Titik Pantau (Batas ≤ 25,0°C)</span>
+                  </div>
+                </div>
+
+                <div class="wh-row-right" id="whActionColCK02">
+                  <button type="button" class="wh-switch-action-pill">
+                    Pilih
+                  </button>
+                </div>
+              </div>
+
+              <!-- Warehouse 3: SBY01 (Hub Surabaya) -->
+              <div class="warehouse-select-row" id="whRowSBY01" onclick="selectWarehouse('SBY01', 'Surabaya Rungkut Hub', '≤ 28,0°C')">
+                <div class="wh-row-left">
+                  <div class="wh-icon-box">
+                    <svg class="sf-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M3 21h18"/><path d="M19 21V7l-7-4-7 4v14"/><path d="M9 10h6"/><path d="M9 14h6"/><path d="M9 18h6"/></svg>
+                  </div>
+                  <div class="wh-text-meta">
+                    <div class="wh-name-row">
+                      <span class="wh-code-pill num">SBY01</span>
+                      <span class="wh-full-name">Surabaya Rungkut Hub</span>
+                    </div>
+                    <span class="wh-detail-subtitle">Hub Distribusi Jawa Timur (Batas ≤ 28,0°C)</span>
+                  </div>
+                </div>
+
+                <div class="wh-row-right" id="whActionColSBY01">
+                  <button type="button" class="wh-switch-action-pill">
+                    Pilih
+                  </button>
+                </div>
+              </div>
+
+              <!-- Single Warehouse Restrictive Footnote (Tampil bila skenario Single) -->
+              <div class="single-wh-notice" id="singleWhNotice" style="display: none;">
+                <span class="sf-icon-wrap" style="color:var(--ios-blue); margin-top:2px;">
+                  <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </span>
+                <div>
+                  <strong>Hak Akses Tunggal (BR-04 / FR-018):</strong> Akun Anda hanya ditugaskan pada 1 gudang ini. Hubungi Administrator jika membutuhkan wewenang akses ke gudang cabang lainnya.
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- 3. ACCOUNT SECURITY & PREFERENCES SECTION (FR-002) -->
+          <div class="inset-group-section">
+            <div class="inset-group-header">Keamanan Akun & Kredensial</div>
+            
+            <div class="inset-group-card">
+              <!-- Ganti Password -->
+              <div class="inset-action-row" onclick="openChangePasswordModal()">
+                <div class="action-icon-squircle orange">
+                  <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <div class="action-row-main">
+                  <span class="action-label-text">Ganti Password</span>
+                  <span class="action-sub-text">Minimal 8 karakter (FR-002)</span>
+                </div>
+                <div class="action-row-side">
+                  <svg class="sf-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+              </div>
+
+              <!-- Zona Waktu Operasional -->
+              <div class="inset-action-row" onclick="alert('Zona Waktu Operasional: Asia/Jakarta (WIB). Seluruh pencatatan dan nama folder Google Drive terkunci pada WIB (NFR-03).')">
+                <div class="action-icon-squircle blue">
+                  <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="action-row-main">
+                  <span class="action-label-text">Zona Waktu Operasional</span>
+                  <span class="action-sub-text">Asia/Jakarta (WIB, UTC+7)</span>
+                </div>
+                <div class="action-row-side">
+                  <span style="font-size:12px; font-weight:600; color:var(--ios-blue);">NFR-03</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. SUPPORT & SYSTEM INFO SECTION -->
+          <div class="inset-group-section">
+            <div class="inset-group-header">Informasi & Bantuan Operasional</div>
+            
+            <div class="inset-group-card">
+              <!-- Supervisor Kontak -->
+              <div class="inset-action-row" onclick="alert('Kontak Supervisor: Bpk. Hendra Gunawan (Kepala Logistik Gudang) • No. Telp: +62 812-3456-7890')">
+                <div class="action-icon-squircle green">
+                  <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </div>
+                <div class="action-row-main">
+                  <span class="action-label-text">Supervisor Gudang Bertugas</span>
+                  <span class="action-sub-text">Bpk. Hendra Gunawan (Ext. 204)</span>
+                </div>
+                <div class="action-row-side">
+                  <svg class="sf-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+              </div>
+
+              <!-- Status WhatsApp Gateway -->
+              <div class="inset-action-row" onclick="alert('Status Notifikasi WA Gateway: Terhubung Aktif via Fonnte API (FR-014). Peringatan terkirim otomatis saat suhu melebihi batas.')">
+                <div class="action-icon-squircle purple">
+                  <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                </div>
+                <div class="action-row-main">
+                  <span class="action-label-text">Notifikasi WhatsApp Group</span>
+                  <span class="action-sub-text">Fonnte API • Peringatan Otomatis</span>
+                </div>
+                <div class="action-row-side">
+                  <span style="font-size:11px; font-weight:700; color:var(--ios-green);">AKTIF</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. DESTRUCTIVE LOGOUT ROW -->
+          <div class="inset-group-section">
+            <div class="inset-group-card">
+              <div class="inset-action-row" onclick="confirmLogout()">
+                <div class="action-icon-squircle red">
+                  <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </div>
+                <div class="action-row-main">
+                  <span class="action-label-text destructive">Keluar dari Akun</span>
+                  <span class="action-sub-text">Akhiri sesi kerja shift saat ini</span>
+                </div>
+                <div class="action-row-side">
+                  <svg class="sf-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ios-red)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sheet Credits -->
+          <div class="sheet-footer-credits">
+            Warehouse Temperature Report • Apple HIG Edition v1.4.0<br>
+            Sesi aman HttpOnly JWT • Waktu Server: Asia/Jakarta
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- SUBMODAL 1: GANTI PASSWORD (FR-002) -->
+    <div class="submodal-backdrop" id="submodalChangePassword" onclick="handleSubmodalClick(event, 'submodalChangePassword')">
+      <div class="submodal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="font-size:17px; font-weight:700; color:var(--ios-ink);">Ganti Password</h3>
+          <button type="button" class="sheet-close-btn" onclick="closeChangePasswordModal()">
+            <svg class="sf-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <p style="font-size:13px; color:var(--ios-muted); line-height:1.4;">
+          Sesuai standar <strong>FR-002</strong>, password baru wajib minimal 8 karakter dan tidak boleh menggunakan password default.
+        </p>
+
+        <!-- Form fields -->
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="apple-field-wrap">
+            <label class="apple-field-label">Password Lama *</label>
+            <div class="apple-input-with-icon">
+              <input type="password" id="inputOldPassword" class="apple-text-input" placeholder="Masukkan password saat ini">
+              <button type="button" class="apple-eye-btn" onclick="togglePasswordVisibility('inputOldPassword', this)">
+                <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="apple-field-wrap">
+            <label class="apple-field-label">Password Baru (min 8 karakter) *</label>
+            <div class="apple-input-with-icon">
+              <input type="password" id="inputNewPassword" class="apple-text-input" placeholder="Minimal 8 karakter unik">
+              <button type="button" class="apple-eye-btn" onclick="togglePasswordVisibility('inputNewPassword', this)">
+                <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="apple-field-wrap">
+            <label class="apple-field-label">Ulangi Password Baru *</label>
+            <div class="apple-input-with-icon">
+              <input type="password" id="inputConfirmPassword" class="apple-text-input" placeholder="Ulangi password baru">
+              <button type="button" class="apple-eye-btn" onclick="togglePasswordVisibility('inputConfirmPassword', this)">
+                <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:4px;">
+          <button type="button" class="apple-btn-light" style="flex:1;" onclick="closeChangePasswordModal()">Batal</button>
+          <button type="button" class="apple-btn-capsule" style="flex:2;" id="btnSubmitPassword" onclick="submitChangePassword()">
+            Simpan Password
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUBMODAL 2: CONFIRMATION DIALOG (LOGOUT) -->
+    <div class="submodal-backdrop" id="submodalLogoutConfirm" onclick="handleSubmodalClick(event, 'submodalLogoutConfirm')">
+      <div class="apple-dialog-box">
+        <div class="dialog-header">
+          <div class="dialog-title">Keluar dari Akun?</div>
+          <div class="dialog-desc">
+            Sesi kerja shift Anda akan diakhiri. Pastikan seluruh transaksi suhu hari ini telah tersimpan dengan rapi.
+          </div>
+        </div>
+        <div class="dialog-buttons-col">
+          <button type="button" class="dialog-btn destructive" onclick="executeLogout()">
+            Keluar
+          </button>
+          <button type="button" class="dialog-btn cancel" onclick="closeLogoutModal()">
+            Batal
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. APPLE HIG BOTTOM FLOATING DYNAMIC ISLAND NAVBAR (SYNCHRONIZED WITH DASHBOARD & CATAT SUHU) -->
+    <nav class="apple-bottom-island">
+      <a href="../02-catat-suhu/index.html" class="island-tab-item">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+        <span>Catat Suhu</span>
+      </a>
+
+      <a href="../05-dashboard/index.html" class="island-tab-item">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+
+      <div class="island-tab-item active" onclick="openProfileSheet()">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+        <span>Profil</span>
+      </div>
+
+      <div class="island-tab-item" id="navAdminTab" style="display:none;" onclick="alert('Admin Panel Master (Modul 07)')">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0 2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Admin</span>
+      </div>
+    </nav>
+
+  </div>
+
+  <!-- JAVASCRIPT: BUTTERY-SMOOTH LOGIC & MICRO-INTERACTIONS -->
+  <script>
+    let currentRole = 'MEMBER';
+    let currentScenario = 'MULTI'; // 'MULTI' or 'SINGLE'
+    let currentActiveWhId = 'CK01';
+    let isSwitching = false;
+
+    // Open/Close Profile Sheet
+    function openProfileSheet() {
+      document.getElementById('deviceShell').classList.add('sheet-open');
+      document.getElementById('profileSheetBackdrop').classList.add('active');
+    }
+
+    function closeProfileSheet() {
+      document.getElementById('deviceShell').classList.remove('sheet-open');
+      document.getElementById('profileSheetBackdrop').classList.remove('active');
+    }
+
+    function toggleProfileSheet() {
+      const backdrop = document.getElementById('profileSheetBackdrop');
+      if (backdrop.classList.contains('active')) {
+        closeProfileSheet();
+      } else {
+        openProfileSheet();
+      }
+    }
+
+    function handleBackdropClick(event) {
+      if (event.target.id === 'profileSheetBackdrop') {
+        closeProfileSheet();
+      }
+    }
+
+    // Role Switching (Member vs Admin)
+    function setRole(role) {
+      currentRole = role;
+      document.getElementById('btnRoleMember').classList.toggle('active', role === 'MEMBER');
+      document.getElementById('btnRoleAdmin').classList.toggle('active', role === 'ADMIN');
+
+      const bgAvatar = document.getElementById('bgAvatar');
+      const bgName = document.getElementById('bgName');
+      const bgRole = document.getElementById('bgRole');
+
+      const pAvatar = document.getElementById('profileAvatarLarge');
+      const pName = document.getElementById('profileFullName');
+      const pUsername = document.getElementById('profileUsername');
+      const pBadge = document.getElementById('profileRoleBadge');
+      const pText = document.getElementById('profileRoleText');
+
+      if (role === 'ADMIN') {
+        bgAvatar.textContent = 'AD';
+        bgAvatar.style.background = 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)';
+        bgName.textContent = 'Admin Suhu';
+        bgRole.textContent = 'Administrator';
+
+        pAvatar.textContent = 'AD';
+        pAvatar.style.background = 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)';
+        pAvatar.style.boxShadow = '0 4px 14px rgba(139, 92, 246, 0.35)';
+        pName.textContent = 'Admin Suhu';
+        pUsername.textContent = '@admin.master • ID: USR-001';
+        pBadge.className = 'profile-badge-role admin';
+        pText.textContent = 'Administrator Master';
+        if (navAdmin) navAdmin.style.display = 'inline-flex';
+      } else {
+        bgAvatar.textContent = 'BS';
+        bgAvatar.style.background = 'linear-gradient(135deg, #0284C7 0%, #0071E3 100%)';
+        bgName.textContent = 'Budi Santoso';
+        bgRole.textContent = 'Member Lapangan';
+
+        pAvatar.textContent = 'BS';
+        pAvatar.style.background = 'linear-gradient(135deg, #0284C7 0%, #0071E3 100%)';
+        pAvatar.style.boxShadow = '0 4px 14px rgba(0, 113, 227, 0.3)';
+        pName.textContent = 'Budi Santoso';
+        pUsername.textContent = '@budi.santoso • ID: USR-002';
+        pBadge.className = 'profile-badge-role';
+        pText.textContent = 'Member Lapangan';
+        if (navAdmin) navAdmin.style.display = 'none';
+      }
+
+      showToast(`Beralih peran ke: ${role === 'ADMIN' ? 'Administrator' : 'Member (Petugas)'}`);
+    }
+
+    // Access Scenario Switching (Multi vs Single)
+    function setScenario(scenario) {
+      currentScenario = scenario;
+      document.getElementById('btnScenarioMulti').classList.toggle('active', scenario === 'MULTI');
+      document.getElementById('btnScenarioSingle').classList.toggle('active', scenario === 'SINGLE');
+
+      const rowCK02 = document.getElementById('whRowCK02');
+      const rowSBY01 = document.getElementById('whRowSBY01');
+      const notice = document.getElementById('singleWhNotice');
+
+      if (scenario === 'SINGLE') {
+        // Enforce BR-04: User only has access to CK01
+        rowCK02.style.display = 'none';
+        rowSBY01.style.display = 'none';
+        notice.style.display = 'flex';
+        // Reset to CK01 if currently on another
+        if (currentActiveWhId !== 'CK01') {
+          selectWarehouse('CK01', 'Cikupa 1 (Central DC)', '≤ 25,0°C', true);
+        }
+        showToast('Skenario: Hak Akses Tunggal (BR-04)');
+      } else {
+        // Multi warehouse
+        rowCK02.style.display = 'flex';
+        rowSBY01.style.display = 'flex';
+        notice.style.display = 'none';
+        showToast('Skenario: Multi Gudang (CK01, CK02, SBY01)');
+      }
+    }
+
+    // Select Warehouse Action (FR-019 / BR-10)
+    function selectWarehouse(whId, whName, tempLimit, skipAnim = false) {
+      if (currentActiveWhId === whId && !skipAnim) {
+        showToast(`Gudang ${whId} sudah aktif saat ini.`);
+        return;
+      }
+      if (isSwitching) return;
+
+      if (!skipAnim) {
+        isSwitching = true;
+        // Show loading state in row
+        const targetCol = document.getElementById(`whActionCol${whId}`);
+        const originalContent = targetCol.innerHTML;
+        targetCol.innerHTML = '<div class="apple-spinner"></div>';
+
+        setTimeout(() => {
+          applyWarehouseSwitch(whId, whName, tempLimit);
+          isSwitching = false;
+        }, 400);
+      } else {
+        applyWarehouseSwitch(whId, whName, tempLimit);
+      }
+    }
+
+    function applyWarehouseSwitch(whId, whName, tempLimit) {
+      currentActiveWhId = whId;
+
+      // Update rows
+      const warehouses = ['CK01', 'CK02', 'SBY01'];
+      warehouses.forEach(id => {
+        const row = document.getElementById(`whRow${id}`);
+        const col = document.getElementById(`whActionCol${id}`);
+        if (!row || !col) return;
+
+        if (id === whId) {
+          row.classList.add('active');
+          col.innerHTML = `
+            <span class="wh-status-active-pill">
+              <svg class="sf-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Aktif
+            </span>
+          `;
+        } else {
+          row.classList.remove('active');
+          col.innerHTML = `
+            <button type="button" class="wh-switch-action-pill">
+              Pilih
+            </button>
+          `;
+        }
+      });
+
+      // Update Simulated App Background
+      document.getElementById('bgActiveWarehouseText').textContent = `WH-${whId} • ${whName}`;
+      document.getElementById('mockWhBadge').textContent = `${whId} — ${whName.split(' ')[0]}`;
+      document.getElementById('mockWhTitle').textContent = `Titik Pantau: ${whId === 'CK01' ? 'Storage Chiller A' : whId === 'CK02' ? 'Transit Room B' : 'Dock Receiving 01'}`;
+      document.getElementById('mockWhLimit').textContent = `Suhu Maksimal: ${tempLimit}`;
+
+      showToast(`Berhasil beralih ke: ${whName} (${whId})`);
+    }
+
+    // Modal Ganti Password (FR-002)
+    function openChangePasswordModal() {
+      document.getElementById('submodalChangePassword').classList.add('active');
+    }
+
+    function closeChangePasswordModal() {
+      document.getElementById('submodalChangePassword').classList.remove('active');
+      document.getElementById('inputOldPassword').value = '';
+      document.getElementById('inputNewPassword').value = '';
+      document.getElementById('inputConfirmPassword').value = '';
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+      const input = document.getElementById(inputId);
+      const isPass = input.type === 'password';
+      input.type = isPass ? 'text' : 'password';
+      btn.style.color = isPass ? 'var(--ios-blue)' : 'var(--ios-muted)';
+    }
+
+    function submitChangePassword() {
+      const oldPass = document.getElementById('inputOldPassword').value.trim();
+      const newPass = document.getElementById('inputNewPassword').value.trim();
+      const confirmPass = document.getElementById('inputConfirmPassword').value.trim();
+
+      if (!oldPass) {
+        alert('Silakan masukkan password lama Anda.');
+        return;
+      }
+      if (newPass.length < 8) {
+        alert('Password baru wajib minimal 8 karakter (FR-002).');
+        return;
+      }
+      if (newPass === 'admin123') {
+        alert('Password baru dilarang menggunakan password bawaan "admin123" (FR-002).');
+        return;
+      }
+      if (newPass !== confirmPass) {
+        alert('Konfirmasi password baru tidak cocok. Periksa kembali ketikan Anda.');
+        return;
+      }
+
+      // Simulate API call
+      const btn = document.getElementById('btnSubmitPassword');
+      btn.innerHTML = '<div class="apple-spinner" style="border-top-color:#FFFFFF;"></div> Menyimpan...';
+      btn.disabled = true;
+
+      setTimeout(() => {
+        btn.innerHTML = 'Simpan Password';
+        btn.disabled = false;
+        closeChangePasswordModal();
+        showToast('Password berhasil diperbarui (Tercatat di Audit Log)');
+      }, 600);
+    }
+
+    // Logout Modal
+    function confirmLogout() {
+      document.getElementById('submodalLogoutConfirm').classList.add('active');
+    }
+
+    function closeLogoutModal() {
+      document.getElementById('submodalLogoutConfirm').classList.remove('active');
+    }
+
+    function executeLogout() {
+      closeLogoutModal();
+      closeProfileSheet();
+      showToast('Sesi diakhiri. Mengalihkan ke Halaman Login...');
+      setTimeout(() => {
+        window.location.href = '../01-login/index.html';
+      }, 1200);
+    }
+
+    function handleSubmodalClick(event, modalId) {
+      if (event.target.id === modalId) {
+        document.getElementById(modalId).classList.remove('active');
+      }
+    }
+
+    // Toast Notification Utility
+    let toastTimer = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.classList.add('active');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('active');
+      }, 2600);
+    }
+
+    // Auto open sheet on first load to showcase the UI immediately
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        openProfileSheet();
+      }, 250);
+    });
+  </script>
+</body>
+</html>

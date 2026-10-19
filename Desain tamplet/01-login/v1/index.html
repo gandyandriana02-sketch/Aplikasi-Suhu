@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Modul 01: Login & Ganti Password — Prototype</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="../shared/components.css">
+  <style>
+    :root {
+      --ink: #1B262C;
+      --ink-muted: #5F6B73;
+      --surface: #F3F6F8;
+      --surface-raised: #FFFFFF;
+      --line: #CBD3D8;
+      --primary: #1565A6;
+      --primary-hover: #0F4C81;
+      --primary-tint: #E8F2FA;
+      --primary-ink: #FFFFFF;
+      --ok: #1B7F4B;
+      --ok-tint: #E3F4EA;
+      --over: #C62828;
+      --over-tint: #FDECEA;
+      --fail: #B8560A;
+      --fail-tint: #FFF1E3;
+      --empty-tint: #EEF1F3;
+      --radius-badge: 6px;
+      --radius-control: 8px;
+      --radius-card: 12px;
+      --radius-sheet: 16px;
+      --radius-pill: 9999px;
+      --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.03);
+      --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-modal: 0 8px 30px rgba(0, 0, 0, 0.16);
+      --font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--surface);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      position: relative;
+    }
+
+    /* Forms & Inputs */
+    .form-group {
+      margin-bottom: 18px;
+      position: relative;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-control {
+      width: 100%;
+      min-height: 46px;
+      padding: 10px 14px;
+      border-radius: var(--radius-control);
+      border: 1.5px solid var(--line);
+      background-color: var(--surface-raised);
+      color: var(--ink);
+      font-size: 15px;
+      font-family: inherit;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .input-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(21, 101, 166, 0.15);
+    }
+
+    .input-control::placeholder {
+      color: var(--ink-muted);
+      opacity: 0.7;
+    }
+
+    /* Eye Toggle Button */
+    .input-suffix-btn {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      color: var(--ink-muted);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s ease;
+    }
+
+    .input-suffix-btn:hover {
+      color: var(--ink);
+    }
+
+    /* Primary Button */
+    .btn-primary {
+      width: 100%;
+      min-height: 46px;
+      padding: 12px 18px;
+      border-radius: var(--radius-control);
+      background-color: var(--primary);
+      color: var(--primary-ink);
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background-color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-primary:disabled {
+      background-color: #CBD3D8;
+      color: #718096;
+      cursor: not-allowed;
+    }
+
+    /* Alert Boxes */
+    .alert-box {
+      border-radius: var(--radius-control);
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .alert-error {
+      background-color: var(--over-tint);
+      border: 1px solid var(--over);
+      color: var(--over);
+    }
+
+    .alert-error svg {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* Modal Overlay */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(27, 38, 44, 0.55);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 1000;
+    }
+
+    .modal-dialog {
+      background-color: var(--surface-raised);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-modal);
+      width: 100%;
+      max-width: 440px;
+      overflow: hidden;
+      animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalPop {
+      from { opacity: 0; transform: scale(0.96) translateY(4px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    /* CARD WRAPPER */
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+      background-color: var(--surface-raised);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-card);
+      padding: 32px 24px;
+      position: relative;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* BRAND HEADER */
+    .brand-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .brand-icon-box {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background-color: var(--ink);
+      color: #FFFFFF;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .brand-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 4px;
+      line-height: 1.25;
+    }
+
+    .brand-subtitle {
+      font-size: 13px;
+      color: var(--ink-muted);
+    }
+
+    /* FOOTER HELPER */
+    .login-footer-help {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--ink-muted);
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+      line-height: 1.4;
+    }
+
+    /* TESTING HELPER / TOOLBAR AT BOTTOM */
+    .tester-toolbar {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(27, 38, 44, 0.94);
+      backdrop-filter: blur(4px);
+      color: #FFFFFF;
+      padding: 8px 14px;
+      border-radius: 30px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 11px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      z-index: 100;
+      max-width: 95vw;
+      overflow-x: auto;
+    }
+
+    .tester-btn {
+      background: #334155;
+      color: #FFFFFF;
+      border: 1px solid #475569;
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s ease;
+    }
+
+    .tester-btn:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    /* SUCCESS TOAST OVERLAY */
+    .toast-overlay {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--ok);
+      color: #FFFFFF;
+      padding: 12px 20px;
+      border-radius: var(--radius-control);
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: var(--shadow-modal);
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 2000;
+      animation: slideDown 0.25s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translate(-50%, -10px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    /* SPINNER */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #FFFFFF;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SUCCESS SIMULATION TOAST -->
+  <div id="toastNotification" class="toast-overlay">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+    <span id="toastMessage">Login Berhasil! Mengalihkan...</span>
+  </div>
+
+  <!-- MAIN LOGIN CARD -->
+  <div class="login-card">
+    <!-- Brand Header -->
+    <div class="brand-header">
+      <div class="brand-icon-box">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+        </svg>
+      </div>
+      <h1 class="brand-title">Warehouse Temperature Report</h1>
+      <p class="brand-subtitle">Masuk ke sistem pencatatan suhu gudang</p>
+    </div>
+
+    <!-- Alert Box Error (Tampil saat salah login / error) -->
+    <div id="alertBox" class="alert-box alert-error" style="display: none;" role="alert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <div id="alertText">Username atau password salah. Periksa lagi, lalu coba masuk kembali.</div>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" onsubmit="handleLoginSubmit(event)" novalidate>
+      <!-- Username Field -->
+      <div class="form-group">
+        <label for="usernameInput" class="form-label">Username</label>
+        <div class="input-wrapper">
+          <input
+            id="usernameInput"
+            type="text"
+            class="input-control"
+            placeholder="Masukkan username Anda"
+            autocomplete="username"
+            autocapitalize="none"
+            autocorrect="off"
+            spellcheck="false"
+            required
+            value=""
+            oninput="clearAlert()"
+          >
+        </div>
+      </div>
+
+      <!-- Password Field (with Eye Toggle) -->
+      <div class="form-group">
+        <label for="passwordInput" class="form-label">Password</label>
+        <div class="input-wrapper">
+          <input
+            id="passwordInput"
+            type="password"
+            class="input-control"
+            placeholder="Masukkan password Anda"
+            autocomplete="current-password"
+            autocapitalize="none"
+            autocorrect="off"
+            spellcheck="false"
+            required
+            value=""
+            oninput="clearAlert()"
+            style="padding-right: 42px;"
+          >
+          <!-- Eye Toggle Button -->
+          <button
+            type="button"
+            id="btnTogglePassword"
+            class="input-suffix-btn"
+            onclick="togglePasswordVisibility('passwordInput', 'iconEyePassword')"
+            title="Tampilkan / Sembunyikan Password"
+            aria-label="Tampilkan atau sembunyikan password"
+          >
+            <!-- Default Eye Icon -->
+            <svg id="iconEyePassword" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Submit Button with Loading State -->
+      <button type="submit" id="btnSubmit" class="btn-primary">
+        <span id="btnSubmitText">Masuk ke Aplikasi</span>
+      </button>
+    </form>
+
+    <!-- Footer Support / Contact -->
+    <div class="login-footer-help">
+      Lupa password atau butuh akses akun baru?<br>
+      Silakan hubungi <strong>Supervisor Gudang</strong> atau <strong>Administrator</strong>.
+    </div>
+  </div>
+
+  <!-- MODAL WAJIB GANTI PASSWORD AWAL (PRD FR-002) -->
+  <div id="modalChangePassword" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-body">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <div style="width:34px; height:34px; border-radius:8px; background:var(--over-tint); color:var(--over); display:flex; align-items:center; justify-content:center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div>
+            <h2 style="font-size:16px; font-weight:700; color:var(--ink);">Wajib Ganti Password Awal</h2>
+            <div style="font-size:11px; color:var(--ink-muted);">Ketentuan Keamanan Sistem (FR-002)</div>
+          </div>
+        </div>
+
+        <p style="font-size:13px; color:var(--ink-muted); margin-bottom:16px; line-height:1.45;">
+          Akun Anda masih menggunakan password default. Demi keamanan operasional gudang, silakan buat password baru sebelum melanjutkan.
+        </p>
+
+        <!-- Modal Alert Error -->
+        <div id="modalAlertBox" class="alert-box alert-error" style="display:none; padding:10px 12px; margin-bottom:14px; font-size:12px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div id="modalAlertText">Password baru minimal 8 karakter.</div>
+        </div>
+
+        <form id="changePasswordForm" onsubmit="handleChangePasswordSubmit(event)">
+          <!-- Password Lama (Otomatis terisi dari input login) -->
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:12px;">Password Lama</label>
+            <input id="oldPasswordInput" type="password" class="input-control" readonly style="background:var(--surface); cursor:not-allowed; font-size:13px; min-height:40px;">
+          </div>
+
+          <!-- Password Baru -->
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:12px;">Password Baru (Minimal 8 karakter)</label>
+            <div class="input-wrapper">
+              <input id="newPasswordInput" type="password" class="input-control" placeholder="Masukkan password baru" required style="font-size:13px; min-height:40px; padding-right:40px;">
+              <button type="button" class="input-suffix-btn" onclick="togglePasswordVisibility('newPasswordInput', 'iconEyeNew')">
+                <svg id="iconEyeNew" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Konfirmasi Password Baru -->
+          <div class="form-group" style="margin-bottom:20px;">
+            <label class="form-label" style="font-size:12px;">Konfirmasi Password Baru</label>
+            <div class="input-wrapper">
+              <input id="confirmPasswordInput" type="password" class="input-control" placeholder="Ulangi password baru" required style="font-size:13px; min-height:40px; padding-right:40px;">
+              <button type="button" class="input-suffix-btn" onclick="togglePasswordVisibility('confirmPasswordInput', 'iconEyeConfirm')">
+                <svg id="iconEyeConfirm" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="btnSubmitChangePass" class="btn-primary" style="min-height:42px;">
+            <span id="btnSubmitChangePassText">Simpan Password & Masuk</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- TESTER HELPER TOOLBAR (UNTUK MEMPERMUDAH REVIEW & SIMULASI CEPAT) -->
+  <div class="tester-toolbar">
+    <span style="font-weight:700; color:#94A3B8;">Uji Skenario:</span>
+    <button class="tester-btn" onclick="fillCredentials('admin', 'admin123', true)" title="Skenario Admin Wajib Ganti Password">
+      1. Admin (Wajib Ganti Pass)
+    </button>
+    <button class="tester-btn" onclick="fillCredentials('admin', 'AdminGudang2026!')" title="Skenario Admin Normal">
+      2. Admin (Normal)
+    </button>
+    <button class="tester-btn" onclick="fillCredentials('budi', 'budi123')" title="Skenario Petugas Lapangan">
+      3. Member (Budi)
+    </button>
+    <button class="tester-btn" onclick="fillCredentials('admin', 'passwordSalah123')" title="Skenario Password Salah">
+      4. Password Salah (Error)
+    </button>
+  </div>
+
+  <script>
+    // SIMULATED DATABASE ACCOUNTS
+    const MOCK_USERS = {
+      'admin': {
+        username: 'admin',
+        fullName: 'Administrator Gudang',
+        role: 'ADMIN',
+        activeWarehouse: 'CK01',
+        defaultPassword: 'admin123',
+        normalPassword: 'AdminGudang2026!'
+      },
+      'budi': {
+        username: 'budi',
+        fullName: 'Budi (Petugas)',
+        role: 'MEMBER',
+        activeWarehouse: 'CK01',
+        normalPassword: 'budi123'
+      }
+    };
+
+    // TOGGLE PASSWORD VISIBILITY (EYE BUTTON)
+    function togglePasswordVisibility(inputId, iconId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      
+      if (input.type === 'password') {
+        input.type = 'text';
+        // Eye-off icon
+        icon.innerHTML = `
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
+        `;
+      } else {
+        input.type = 'password';
+        // Eye normal icon
+        icon.innerHTML = `
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        `;
+      }
+    }
+
+    // QUICK FILL PRESET
+    function fillCredentials(user, pass) {
+      clearAlert();
+      document.getElementById('usernameInput').value = user;
+      document.getElementById('passwordInput').value = pass;
+    }
+
+    function clearAlert() {
+      document.getElementById('alertBox').style.display = 'none';
+    }
+
+    function showAlert(msg) {
+      document.getElementById('alertText').innerText = msg;
+      document.getElementById('alertBox').style.display = 'flex';
+    }
+
+    // HANDLE LOGIN SUBMIT
+    function handleLoginSubmit(e) {
+      e.preventDefault();
+      clearAlert();
+
+      const username = document.getElementById('usernameInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+
+      if (!username || !password) {
+        showAlert('Silakan masukkan username dan password.');
+        return;
+      }
+
+      // Set Loading State
+      const btn = document.getElementById('btnSubmit');
+      const btnText = document.getElementById('btnSubmitText');
+      btn.disabled = true;
+      btnText.innerHTML = '<span style="display:flex; align-items:center; gap:8px;"><span class="spinner"></span> Memverifikasi kredensial...</span>';
+
+      // Simulate Network Delay (600ms)
+      setTimeout(() => {
+        btn.disabled = false;
+        btnText.innerText = 'Masuk ke Aplikasi';
+
+        const user = MOCK_USERS[username.toLowerCase()];
+
+        // Skenario 1: Username tidak ditemukan
+        if (!user) {
+          showAlert('Username atau password salah. Periksa lagi, lalu coba masuk kembali.');
+          return;
+        }
+
+        // Skenario 2: Password Default admin123 (Memicu Wajib Ganti Password FR-002)
+        if (username.toLowerCase() === 'admin' && password === user.defaultPassword) {
+          document.getElementById('oldPasswordInput').value = password;
+          document.getElementById('modalChangePassword').style.display = 'flex';
+          return;
+        }
+
+        // Skenario 3: Password Benar (Admin atau Member)
+        if (password === user.normalPassword) {
+          showToast(`Berhasil masuk sebagai ${user.fullName} (${user.role})!`);
+          return;
+        }
+
+        // Skenario 4: Password Salah
+        showAlert('Username atau password salah. Periksa lagi, lalu coba masuk kembali.');
+      }, 600);
+    }
+
+    // HANDLE CHANGE PASSWORD MODAL SUBMIT (FR-002)
+    function handleChangePasswordSubmit(e) {
+      e.preventDefault();
+      const newPass = document.getElementById('newPasswordInput').value;
+      const confirmPass = document.getElementById('confirmPasswordInput').value;
+      const modalAlert = document.getElementById('modalAlertBox');
+      const modalAlertText = document.getElementById('modalAlertText');
+
+      modalAlert.style.display = 'none';
+
+      if (newPass.length < 8) {
+        modalAlertText.innerText = 'Password baru minimal harus 8 karakter.';
+        modalAlert.style.display = 'flex';
+        return;
+      }
+
+      if (newPass === 'admin123') {
+        modalAlertText.innerText = 'Password baru tidak boleh menggunakan password default "admin123".';
+        modalAlert.style.display = 'flex';
+        return;
+      }
+
+      if (newPass !== confirmPass) {
+        modalAlertText.innerText = 'Konfirmasi password baru tidak cocok.';
+        modalAlert.style.display = 'flex';
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitChangePass');
+      const btnText = document.getElementById('btnSubmitChangePassText');
+      btn.disabled = true;
+      btnText.innerHTML = '<span style="display:flex; align-items:center; justify-content:center; gap:8px;"><span class="spinner"></span> Menyimpan password baru...</span>';
+
+      setTimeout(() => {
+        btn.disabled = false;
+        btnText.innerText = 'Simpan Password & Masuk';
+        document.getElementById('modalChangePassword').style.display = 'none';
+        
+        // Update mock password
+        MOCK_USERS['admin'].normalPassword = newPass;
+        showToast('Password berhasil diperbarui! Mengalihkan ke Halaman Utama...');
+      }, 700);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastMessage').innerText = msg;
+      toast.style.display = 'flex';
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3500);
+    }
+  </script>
+</body>
+</html>

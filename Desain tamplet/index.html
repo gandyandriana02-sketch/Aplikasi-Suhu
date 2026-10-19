@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Master Hub Prototype — Warehouse Temperature Report</title>
+  <link rel="stylesheet" href="./shared/tokens.css">
+  <link rel="stylesheet" href="./shared/components.css">
+  <style>
+    :root {
+      --ink: #1B262C;
+      --ink-muted: #5F6B73;
+      --surface: #F3F6F8;
+      --surface-raised: #FFFFFF;
+      --line: #CBD3D8;
+      --primary: #1565A6;
+      --primary-hover: #0F4C81;
+      --primary-tint: #E8F2FA;
+      --primary-ink: #FFFFFF;
+      --ok: #1B7F4B;
+      --over: #C62828;
+      --radius-badge: 6px;
+      --radius-control: 8px;
+      --radius-card: 12px;
+      --radius-pill: 9999px;
+      --font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0E161B;
+      color: #E2E8F0;
+      padding: 32px 16px 80px 16px;
+      font-family: var(--font-family);
+      display: flex;
+      justify-content: center;
+    }
+
+    .hub-container {
+      width: 100%;
+      max-width: 820px;
+    }
+
+    .hub-header {
+      background: #1B262C;
+      border: 1px solid #334155;
+      border-radius: var(--radius-card);
+      padding: 24px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .hub-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(21, 101, 166, 0.25);
+      border: 1px solid var(--primary);
+      color: #60A5FA;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .module-card {
+      background: #1B262C;
+      border: 1px solid #334155;
+      border-radius: var(--radius-card);
+      padding: 20px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .module-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .module-card.active-work {
+      border-color: #F59E0B;
+      background: linear-gradient(180deg, #1E293B 0%, #17202E 100%);
+    }
+
+    .module-card.locked {
+      opacity: 0.55;
+      pointer-events: none;
+      border-style: dashed;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .pill-review {
+      background: rgba(245, 158, 11, 0.15);
+      color: #FBBF24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .pill-approved {
+      background: rgba(27, 127, 75, 0.2);
+      color: #34D399;
+      border: 1px solid #1B7F4B;
+    }
+
+    .pill-locked {
+      background: #334155;
+      color: #94A3B8;
+      border: 1px solid #475569;
+    }
+
+    .open-btn {
+      background: var(--primary);
+      color: #FFFFFF;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="hub-container">
+    <!-- Hub Header -->
+    <header class="hub-header">
+      <div>
+        <div class="hub-badge">HTML Prototype First</div>
+        <h1 style="font-size: 22px; font-weight: 700; color: #FFFFFF; margin: 8px 0 4px 0;">
+          Warehouse Temperature Report — Desain Prototype
+        </h1>
+        <p style="font-size: 13px; color: #94A3B8;">
+          Area pengerjaan, uji interaksi, dan kontrol persetujuan bertahap per modul.
+        </p>
+      </div>
+      <div>
+        <span style="font-size: 12px; color: #94A3B8;">Status: </span>
+        <strong style="font-size: 12px; color: #34D399;">7/7 Modul Disetujui (100% Selesai ✓)</strong>
+      </div>
+    </header>
+
+    <!-- MODULE LIST -->
+    <h2 style="font-size: 14px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">
+      Daftar Modul & Status Pengerjaan:
+    </h2>
+
+    <!-- Modul 01: Login (APPROVED) -->
+    <div class="module-card">
+      <div style="flex: 1;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <strong style="font-size: 16px; color: #FFFFFF;">01. Halaman Login & Ganti Password Awal</strong>
+          <span class="status-pill pill-approved">✓ Disetujui (Approved)</span>
+        </div>
+        <p style="font-size: 12px; color: #94A3B8; margin-bottom: 6px;">
+          Desain Mobile-First Minimalist disetujui. Input responsif, tombol intip password, error shake, dan alur FR-002 ganti password awal.
+        </p>
+        <span style="font-size: 11px; color: #64748B;">Source Code: <code>src/app/login/page.tsx</code></span>
+      </div>
+      <div>
+        <a href="./01-login/index.html" class="open-btn" style="background:#334155; color:#E2E8F0;">
+          Lihat Acuan ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Modul 02: Catat Suhu (APPROVED) -->
+    <div class="module-card">
+      <div style="flex: 1;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <strong style="font-size: 16px; color: #FFFFFF;">02. Form Catat Suhu Utama (Member & Admin)</strong>
+          <span class="status-pill pill-approved">✓ Disetujui (Approved v2.3)</span>
+        </div>
+        <p style="font-size: 12px; color: #94A3B8; margin-bottom: 6px;">
+          <strong>v2.3 Standarisasi Apple HIG:</strong> Apple segmented control 4-kolom bebas clipping, font SF Pro & icon SF Symbols seragam, serta pewarnaan dinamis adaptif per shift (Pagi Amber, Siang Biru, Sore Indigo).
+        </p>
+        <span style="font-size: 11px; color: #64748B;">Source Code: <code>src/app/page.tsx</code></span>
+      </div>
+      <div>
+        <a href="./02-catat-suhu/index.html" class="open-btn" style="background:#334155; color:#E2E8F0;">
+          Lihat Acuan ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Modul 03: Kamera & Watermark (APPROVED) -->
+    <div class="module-card">
+      <div style="flex: 1;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <strong style="font-size: 16px; color: #FFFFFF;">03. Overlay Kamera Bukti & Watermark GPS</strong>
+          <span class="status-pill pill-approved">✓ Disetujui (Approved v1.0)</span>
+        </div>
+        <p style="font-size: 12px; color: #94A3B8; margin-bottom: 6px;">
+          <strong>v1.0 Apple HIG Viewfinder:</strong> Jendela bidik kamera layar penuh dengan grid optik, kotak fokus berdenyut, Shutter button Apple, rendering watermark WIB & GPS otomatis pada kanvas, serta kompresi JPEG < 350 KB.
+        </p>
+        <span style="font-size: 11px; color: #64748B;">Source Code: <code>src/components/CameraCaptureModal.tsx</code></span>
+      </div>
+      <div>
+        <a href="./03-kamera-watermark/index.html" class="open-btn" style="background:#334155; color:#E2E8F0;">
+          Lihat Acuan ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Modul 04: Modal Pindah Warehouse (APPROVED) -->
+    <div class="module-card">
+      <div style="flex: 1;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <strong style="font-size: 16px; color: #FFFFFF;">04. Modal Pindah Warehouse di Menu Profil</strong>
+          <span class="status-pill pill-approved">✓ Disetujui (Approved v1.0)</span>
+        </div>
+        <p style="font-size: 12px; color: #94A3B8; margin-bottom: 6px;">
+          <strong>v1.0 Apple HIG Action Sheet:</strong> Lembar aksi profil & pemindahan gudang (FR-019), penegakan akses tunggal (BR-04), sub-modal ganti password mandiri (FR-002), info kontak supervisor, dan logout dengan konfirmasi.
+        </p>
+        <span style="font-size: 11px; color: #64748B;">Source Code: <code>src/components/WarehouseSwitchModal.tsx</code></span>
+      </div>
+      <div>
+        <a href="./04-pindah-warehouse/index.html" class="open-btn" style="background:#334155; color:#E2E8F0;">
+          Lihat Acuan ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Modul 05: Dashboard (APPROVED) -->
+    <div class="module-card">
+      <div style="flex: 1;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <strong style="font-size: 16px; color: #FFFFFF;">05. Dashboard Pemantauan Operasional</strong>
+          <span class="status-pill pill-approved">✓ Disetujui (Approved v1.1)</span>
+        </div>
+        <p style="font-size: 12px; color: #94A3B8; margin-bottom: 6px;">
+          <strong>v1.1 Apple HIG Bento Grid:</strong> Bento KPI visual (progres kelengkapan slot, suhu tertinggi/terendah hero, alert overlimit, WA status), matriks interaktif lokasi × jadwal (BR-09), segmented filter gudang Admin (FR-020), lightbox audit GPS, dan standarisasi floating island navbar.
+        </p>
+        <span style="font-size: 11px; color: #64748B;">Source Code: <code>src/app/dashboard/page.tsx</code></span>
+      </div>
+      <div>
+        <a href="./05-dashboard/index.html" class="open-btn" style="background:#334155; color:#E2E8F0;">
+          Lihat Acuan ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Modul 06: Rekap Bulanan (APPROVED) -->
+    <div class="module-card">
+      <div style="flex: 1;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <strong style="font-size: 16px; color: #FFFFFF;">06. Rekapitulasi Suhu Bulanan & Cetak A4 Landscape</strong>
+          <span class="status-pill pill-approved">✓ Disetujui (Approved v1.2)</span>
+        </div>
+        <p style="font-size: 12px; color: #94A3B8; margin-bottom: 6px;">
+          <strong>v1.2 Apple HIG Pixel-Perfect Matrix:</strong> Tabel matriks 31 hari terkelompok shift, eliminasi bug clipping sticky, penanda akhir pekan merah & shading vertikal, shift pill badges tematik, cetak A4 landscape, ekspor Excel/CSV disetujui pengguna.
+        </p>
+        <span style="font-size: 11px; color: #64748B;">Source Code: <code>src/app/reports/monthly/page.tsx</code></span>
+      </div>
+      <div>
+        <a href="./06-rekap-bulanan/index.html" class="open-btn" style="background:#334155; color:#E2E8F0;">
+          Lihat Acuan ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Modul 07: Panel Admin (APPROVED) -->
+    <div class="module-card">
+      <div style="flex: 1;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <strong style="font-size: 16px; color: #FFFFFF;">07. Panel Administrasi Master Data, Akun & Audit Logs</strong>
+          <span class="status-pill pill-approved">✓ Disetujui (Approved v1.0)</span>
+        </div>
+        <p style="font-size: 12px; color: #94A3B8; margin-bottom: 6px;">
+          <strong>v1.0 Apple HIG Executive Admin Suite:</strong> Master Gudang & Hak Akses, Master Lokasi & Jadwal Shift, Manajemen Akun Pengguna & Reset Password, Pengaturan Batas Suhu & Kunci Tanggal, Notifikasi WA Fonnte & Retry, serta Audit Logs komprehensif.
+        </p>
+        <span style="font-size: 11px; color: #64748B;">Source Code: <code>src/app/admin/page.tsx</code>, <code>src/app/api/admin/*</code></span>
+      </div>
+      <div>
+        <a href="./07-admin-panel/index.html" class="open-btn" style="background:#334155; color:#E2E8F0;">
+          Lihat Acuan ↗
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

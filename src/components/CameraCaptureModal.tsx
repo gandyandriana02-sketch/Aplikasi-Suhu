@@ -32,39 +32,40 @@ export default function CameraCaptureModal({
   const [gpsStatus, setGpsStatus] = useState<string>('Mencari GPS...');
   const [gpsCoords, setGpsCoords] = useState<string>('');
 
-  // 1. Start Rear Camera and Request GPS on mount (FR-008, BR-05, BR-06)
-  useEffect(() => {
-    let activeStream: MediaStream | null = null;
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
 
-    async function initCamera() {
-      try {
-        if (stream) {
-          stream.getTracks().forEach((track) => track.stop());
-        }
-
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          },
-          audio: false
-        });
-        activeStream = mediaStream;
-        setStream(mediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-          await videoRef.current.play();
-        }
-      } catch (err: any) {
-        console.error('Camera access error:', err);
-        setCameraError(
-          'Kamera browser tidak dapat diakses langsung. Anda dapat menggunakan kamera bawaan perangkat di bawah ini.'
-        );
+  // Start Camera with specific facing mode (rear environment vs front user)
+  async function startCamera(mode: 'environment' | 'user') {
+    try {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
       }
-    }
+      setCameraError('');
 
-    initCamera();
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: mode },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        await videoRef.current.play();
+      }
+    } catch (err: any) {
+      console.error('Camera access error:', err);
+      setCameraError(
+        'Kamera browser tidak dapat diakses langsung. Anda dapat menggunakan kamera bawaan perangkat di bawah ini.'
+      );
+    }
+  }
+
+  // 1. Start Camera and Request GPS on mount (FR-008, BR-05, BR-06)
+  useEffect(() => {
+    startCamera(facingMode);
 
     // Request GPS location in parallel (optional per BR-06)
     if ('geolocation' in navigator) {
@@ -87,11 +88,17 @@ export default function CameraCaptureModal({
     }
 
     return () => {
-      if (activeStream) {
-        activeStream.getTracks().forEach((track) => track.stop());
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
       }
     };
   }, []);
+
+  function handleToggleCamera() {
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextMode);
+    startCamera(nextMode);
+  }
 
   // 2. Process Image, Apply Honest Watermark on Canvas, & Compress (NFR-01, FR-008, BR-05, BR-06)
   function processImageToCanvas(imageSource: CanvasImageSource, vWidth: number, vHeight: number) {
@@ -639,6 +646,34 @@ export default function CameraCaptureModal({
                   transition: 'transform 0.1s ease'
                 }}
               />
+            </button>
+
+            {/* Flip / Switch Camera Button (Kamera Depan / Belakang) */}
+            <button
+              onClick={handleToggleCamera}
+              type="button"
+              title={facingMode === 'environment' ? 'Ganti ke Kamera Depan' : 'Ganti ke Kamera Belakang'}
+              aria-label="Ganti Kamera"
+              style={{
+                position: 'absolute',
+                right: 0,
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(10px)',
+                border: 'none',
+                color: '#FFFFFF',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'transform 0.1s ease'
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+              </svg>
             </button>
           </div>
         ) : null}

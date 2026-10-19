@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rekapitulasi Suhu Bulanan (A4 Landscape & Ekspor) — Warehouse Temperature Report</title>
+  
+  <!-- Apple Human Interface Guidelines (HIG) Foundations -->
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="../shared/components.css">
+  
+  <!-- SheetJS (XLSX) for client-side authentic Excel export -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    /* ==========================================================================
+       APPLE HIG REKAP BULANAN — DESKTOP-FIRST & PRINT-READY (A4 LANDSCAPE)
+       PRD Reference: FR-016, FR-017, FR-018, BR-07, BR-09, NFR-03, NFR-05
+       ========================================================================== */
+
+    :root {
+      --ios-bg: #F2F2F7;
+      --ios-card: #FFFFFF;
+      --ios-ink: #1D1D1F;
+      --ios-muted: #86868B;
+      --ios-subtle: #E5E5EA;
+      --ios-blue: #0071E3;
+      --ios-blue-tint: #E8F2FD;
+      --ios-green: #34C759;
+      --ios-green-tint: #E8F8ED;
+      --ios-red: #FF3B30;
+      --ios-red-tint: #FEEBEA;
+      --ios-orange: #FF9500;
+      --ios-orange-tint: #FFF4E5;
+      --ios-indigo: #5856D6;
+      --ios-indigo-tint: #EEF2FF;
+      --apple-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+      --apple-spring: cubic-bezier(0.2, 0.9, 0.25, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: #0B0F19;
+      color: var(--ios-ink);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+      margin: 0;
+      overflow-x: hidden;
+    }
+
+    /* TOP TESTER AUDIT BAR (DESKTOP CONTROLS) */
+    .tester-top-bar {
+      width: 100%;
+      background: #0F172A;
+      border-bottom: 1px solid #1E293B;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      color: #94A3B8;
+      z-index: 1000;
+      flex-wrap: wrap;
+    }
+
+    .tester-left-group, .tester-right-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tester-role-group {
+      display: inline-flex;
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 18px;
+      padding: 2px 3px;
+      gap: 2px;
+    }
+
+    .tester-toggle-btn {
+      background: transparent;
+      color: #94A3B8;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s var(--apple-smooth);
+    }
+    .tester-toggle-btn.active {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    .tester-action-pill {
+      background: #334155;
+      color: #FFFFFF;
+      border: 1px solid #475569;
+      padding: 4px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      text-decoration: none;
+    }
+    .tester-action-pill:hover {
+      background: var(--ios-blue);
+    }
+
+    .version-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 113, 227, 0.15);
+      border: 1px solid rgba(0, 113, 227, 0.4);
+      color: #38BDF8;
+      padding: 3px 10px;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .version-pill:hover {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+    }
+
+    /* VIEWPORT CONTAINER (DESKTOP MODE VS MOBILE SHELL) */
+    .rekap-viewport-container {
+      width: 100%;
+      min-height: calc(100vh - 44px);
+      display: flex;
+      justify-content: center;
+      padding: 20px 24px 120px 24px;
+      transition: all 0.35s var(--apple-smooth);
+    }
+
+    /* Desktop Mode (Full Table Expansion) */
+    .rekap-viewport-container.mode-desktop {
+      max-width: 1360px;
+    }
+
+    /* Mobile Shell Mode (iPhone Viewport) */
+    .rekap-viewport-container.mode-mobile {
+      max-width: 440px;
+      padding: 0 0 150px 0;
+    }
+
+    .rekap-main-paper {
+      width: 100%;
+      background: #FFFFFF;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      padding: 28px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+
+    .mode-mobile .rekap-main-paper {
+      border-radius: 0;
+      box-shadow: none;
+      padding: 20px 16px;
+      background-color: var(--ios-bg);
+      gap: 16px;
+    }
+
+    /* SMOOTH APPLE ENTRANCE */
+    @keyframes appleViewEnter {
+      from {
+        opacity: 0.88;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .rekap-main-paper {
+      animation: appleViewEnter 0.22s var(--apple-smooth) both;
+    }
+
+    /* HEADER & FORMAL BRANDING SECTION */
+    .report-brand-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      border-bottom: 1.5px solid rgba(0, 0, 0, 0.08);
+      padding-bottom: 18px;
+    }
+
+    .brand-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .report-main-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--ios-ink);
+      letter-spacing: -0.6px;
+      line-height: 1.15;
+    }
+
+    /* ACTION CAPSULE BUTTONS (PRINT & EXPORTS) */
+    .report-action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-capsule-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: #FFFFFF;
+      color: var(--ios-ink);
+      transition: all 0.18s var(--apple-smooth);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      user-select: none;
+    }
+    .btn-capsule-action:hover {
+      background: var(--ios-subtle);
+      transform: translateY(-1px);
+    }
+    .btn-capsule-action:active {
+      transform: scale(0.96);
+    }
+
+    .btn-capsule-action.primary {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+      border-color: var(--ios-blue);
+      box-shadow: 0 4px 12px rgba(0, 113, 227, 0.25);
+    }
+    .btn-capsule-action.primary:hover {
+      background: #0077ED;
+    }
+
+    .btn-capsule-action.excel {
+      background: #107C41;
+      color: #FFFFFF;
+      border-color: #107C41;
+      box-shadow: 0 4px 12px rgba(16, 124, 65, 0.25);
+    }
+    .btn-capsule-action.excel:hover {
+      background: #0E6B37;
+    }
+
+    /* COMPACT KPI METRIC STRIP (APPLE BENTO STRIP) */
+    .rekap-kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    .kpi-mini-card {
+      background: #F8FAFC;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-mini-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ios-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .kpi-mini-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--ios-ink);
+      letter-spacing: -0.3px;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi-mini-val.red { color: var(--ios-red); }
+    .kpi-mini-val.green { color: var(--ios-green); }
+    .kpi-mini-val.blue { color: var(--ios-blue); }
+
+    .kpi-mini-sub {
+      font-size: 11px;
+      color: var(--ios-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* FILTER & PARAMETER CONTROL BAR */
+    .report-filter-bar {
+      background: #F8FAFC;
+      border-radius: 16px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-selector-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-item-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ios-muted);
+    }
+
+    .apple-select-input {
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 10px;
+      padding: 5px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ios-ink);
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+    .apple-select-input:focus {
+      border-color: var(--ios-blue);
+    }
+
+    .filter-legend-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--ios-muted);
+      flex-wrap: wrap;
+    }
+
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+    }
+    .legend-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+    .legend-indicator.weekend { background: var(--ios-red); }
+    .legend-indicator.overlimit { background: var(--ios-red-tint); border: 1px solid var(--ios-red); }
+    .legend-indicator.normal { background: #FFFFFF; border: 1px solid #CBD5E1; }
+    .legend-indicator.empty { background: #F1F5F9; border: 1px dashed #94A3B8; }
+
+    /* ==========================================================================
+       THE 31-DAY MASTER TEMPERATURE MATRIX TABLE (PRD 16.1 & DESIGN.MD 5.3)
+       ========================================================================== */
+    .matrix-table-container {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: 16px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: #FFFFFF;
+      -webkit-overflow-scrolling: touch;
+      position: relative;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    }
+
+    .rekap-master-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      min-width: 1240px;
+    }
+
+    /* TABLE HEADERS */
+    .rekap-master-table thead th {
+      background: #F1F5F9;
+      color: #334155;
+      font-weight: 700;
+      padding: 8px 4px;
+      border: 1px solid #CBD5E1;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .rekap-master-table thead tr:first-child th {
+      position: sticky;
+      top: 0;
+      z-index: 25;
+    }
+
+    .rekap-master-table thead tr:nth-child(2) th {
+      position: sticky;
+      top: 31px;
+      z-index: 25;
+    }
+
+    /* Fixed Left Columns (Sticky No, Location, Periode) */
+    .rekap-master-table th.col-sticky-1,
+    .rekap-master-table td.col-sticky-1 {
+      position: sticky;
+      left: 0;
+      z-index: 20;
+      background: #F8FAFC;
+      width: 38px;
+      min-width: 38px;
+      max-width: 38px;
+      font-weight: 700;
+      color: var(--ios-muted);
+      border-right: 1px solid #CBD5E1;
+    }
+
+    .rekap-master-table th.col-sticky-2,
+    .rekap-master-table td.col-sticky-2 {
+      position: sticky;
+      left: 38px;
+      z-index: 20;
+      background: #FFFFFF;
+      text-align: left;
+      padding-left: 12px;
+      font-weight: 700;
+      color: var(--ios-ink);
+      width: 120px;
+      min-width: 120px;
+      max-width: 120px;
+      border-right: 1px solid #CBD5E1;
+    }
+
+    .rekap-master-table th.col-sticky-3,
+    .rekap-master-table td.col-sticky-3 {
+      position: sticky;
+      left: 158px;
+      z-index: 20;
+      background: #F8FAFC;
+      font-weight: 700;
+      width: 96px;
+      min-width: 96px;
+      max-width: 96px;
+      border-right: 2px solid #94A3B8;
+      box-shadow: 4px 0 10px rgba(0, 0, 0, 0.05);
+      padding: 0 4px;
+    }
+
+    .rekap-master-table thead th.col-sticky-1,
+    .rekap-master-table thead th.col-sticky-2,
+    .rekap-master-table thead th.col-sticky-3 {
+      z-index: 50;
+      background: #F1F5F9;
+    }
+
+    /* Shift Pill Badges */
+    .shift-pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+    .shift-pill-badge.pagi {
+      background: rgba(245, 158, 11, 0.12);
+      color: #B45309;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+    .shift-pill-badge.siang {
+      background: rgba(0, 113, 227, 0.1);
+      color: #0071E3;
+      border: 1px solid rgba(0, 113, 227, 0.3);
+    }
+    .shift-pill-badge.sore {
+      background: rgba(99, 102, 241, 0.12);
+      color: #4F46E5;
+      border: 1px solid rgba(99, 102, 241, 0.35);
+    }
+
+    /* Shift Group Row Accents */
+    .rekap-master-table tbody tr.shift-break td {
+      border-top: 2.5px solid #64748B !important;
+    }
+    .rekap-master-table tbody tr.shift-pagi-row td.col-sticky-1 {
+      border-left: 3.5px solid #F59E0B;
+    }
+    .rekap-master-table tbody tr.shift-siang-row td.col-sticky-1 {
+      border-left: 3.5px solid #0071E3;
+    }
+    .rekap-master-table tbody tr.shift-sore-row td.col-sticky-1 {
+      border-left: 3.5px solid #6366F1;
+    }
+
+    /* Date Columns (1..31) */
+    .rekap-master-table th.col-date {
+      width: 32px;
+      min-width: 32px;
+      max-width: 36px;
+      padding: 6px 2px;
+    }
+
+    /* Mandatory Weekend Highlighting (PRD 16.1: Header Sabtu & Minggu Latar Merah) */
+    .rekap-master-table th.col-date.weekend {
+      background-color: var(--ios-red) !important;
+      color: #FFFFFF !important;
+      border-color: #DC2626;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+
+    /* Weekend Column Tint in Table Body */
+    .rekap-master-table td.col-weekend {
+      background-color: rgba(255, 59, 48, 0.035);
+    }
+    .rekap-master-table tbody tr:hover td.col-weekend {
+      background-color: rgba(255, 59, 48, 0.075);
+    }
+
+    /* Summary Columns (Right: Min & Max) */
+    .rekap-master-table th.col-summary,
+    .rekap-master-table td.col-summary {
+      background: #F8FAFC;
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 6px 6px;
+      width: 54px;
+      min-width: 54px;
+      border-left: 1px solid #CBD5E1;
+      text-align: center;
+    }
+    .rekap-master-table th.col-summary:first-of-type,
+    .rekap-master-table td.col-summary:first-of-type {
+      border-left: 2px solid #94A3B8;
+    }
+    .rekap-master-table td.col-summary.val-min {
+      color: #0284C7;
+    }
+    .rekap-master-table td.col-summary.val-max {
+      color: #DC2626;
+      font-weight: 800;
+    }
+
+    /* TABLE BODY CELLS */
+    .rekap-master-table tbody td {
+      border: 1px solid #E2E8F0;
+      height: 38px;
+      padding: 0;
+      vertical-align: middle;
+      position: relative;
+    }
+
+    .rekap-master-table tbody tr:hover td {
+      background-color: rgba(0, 113, 227, 0.03);
+    }
+    .rekap-master-table tbody tr:hover td.col-sticky-1,
+    .rekap-master-table tbody tr:hover td.col-sticky-2,
+    .rekap-master-table tbody tr:hover td.col-sticky-3 {
+      background-color: #F1F5F9;
+    }
+
+    /* Interactive Temperature Cell Buttons */
+    .cell-temp-btn {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--ios-ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: background-color 0.12s ease, transform 0.1s ease;
+      text-decoration: none;
+    }
+    .cell-temp-btn:hover {
+      background: rgba(0, 113, 227, 0.08);
+      border-radius: 4px;
+    }
+    .cell-temp-btn:active {
+      transform: scale(0.92);
+    }
+
+    /* Cell Overlimit (Melebihi Batas - BR-07 & DESIGN.md 5.3) */
+    .cell-temp-btn.overlimit {
+      background-color: var(--ios-red-tint);
+      color: var(--ios-red);
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      border-radius: 4px;
+      margin: 2px;
+      height: calc(100% - 4px);
+      box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.25);
+    }
+    .cell-temp-btn.overlimit .tri {
+      font-size: 8px;
+      line-height: 1;
+    }
+
+    /* Cell Empty / Unfilled (BR-09: Selalu Strip –, Jangan Pernah Nol 0) */
+    .cell-temp-btn.empty {
+      color: #94A3B8;
+      font-weight: 500;
+      font-size: 13px;
+    }
+    .cell-temp-btn.empty:hover {
+      color: var(--ios-blue);
+    }
+
+    /* SIGN-OFF / PENGESAHAN SECTION (PRINT & AUDIT REQUIREMENT) */
+    .report-signoff-section {
+      margin-top: 10px;
+      padding-top: 16px;
+      border-top: 1.5px solid rgba(0, 0, 0, 0.08);
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      font-size: 12px;
+    }
+
+    .signoff-box {
+      flex: 1;
+      max-width: 260px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 4px;
+    }
+
+    .signoff-role {
+      font-weight: 700;
+      color: var(--ios-ink);
+      margin-bottom: 2px;
+    }
+
+    .signoff-role-sub {
+      font-size: 11px;
+      color: var(--ios-muted);
+    }
+
+    .signoff-space {
+      height: 54px;
+      width: 100%;
+      border-bottom: 1px solid #94A3B8;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 4px;
+    }
+    .signoff-signature-img {
+      max-height: 44px;
+      opacity: 0.85;
+    }
+
+    .signoff-name {
+      font-weight: 700;
+      color: var(--ios-ink);
+      font-size: 12px;
+    }
+
+    .signoff-date {
+      font-size: 11px;
+      color: var(--ios-muted);
+    }
+
+    .report-footer-audit {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--ios-muted);
+      border-top: 1px dashed #CBD5E1;
+      padding-top: 8px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* ==========================================================================
+       MODAL DETAIL TRANSAKSI & BUKTI FOTO (APPLE LIGHTBOX)
+       ========================================================================== */
+    .apple-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: backdropFadeIn 0.22s ease-out;
+    }
+
+    .apple-modal-box {
+      background: #FFFFFF;
+      border-radius: 24px;
+      width: 100%;
+      max-width: 440px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 24px;
+      animation: modalSlideUp 0.26s var(--apple-spring);
+    }
+
+    @keyframes backdropFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes modalSlideUp { from { transform: scale(0.94) translateY(12px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
+    .modal-head-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal-close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--ios-subtle);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--ios-ink);
+      font-size: 16px;
+      transition: background-color 0.15s ease;
+    }
+    .modal-close-btn:hover {
+      background: #D1D1D6;
+    }
+
+    .modal-photo-canvas-preview {
+      width: 100%;
+      height: 220px;
+      border-radius: 16px;
+      background: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-photo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.9;
+    }
+
+    .modal-photo-watermark-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.85) 100%);
+      color: #FFFFFF;
+      padding: 24px 14px 10px 14px;
+      font-size: 11px;
+      line-height: 1.4;
+      font-family: inherit;
+    }
+
+    .modal-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .modal-meta-card {
+      background: #F8FAFC;
+      border-radius: 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .modal-meta-card.full {
+      grid-column: span 2;
+    }
+    .modal-meta-card-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ios-muted);
+    }
+    .modal-meta-card-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ios-ink);
+    }
+    .modal-meta-card-val.red { color: var(--ios-red); }
+    .modal-meta-card-val.green { color: var(--ios-green); }
+
+    /* EDIT TRANSACTION DIALOG (FR-012) */
+    .edit-submodal-box {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      background: #F8FAFC;
+      border: 1.5px solid var(--ios-blue);
+      border-radius: 16px;
+      padding: 14px;
+      margin-top: 4px;
+    }
+
+    /* FLOATING TOAST NOTIFICATION */
+    .apple-floating-toast {
+      position: fixed;
+      top: 56px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(29, 29, 31, 0.94);
+      backdrop-filter: blur(20px);
+      color: #FFFFFF;
+      padding: 10px 18px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      z-index: 3000;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.35s var(--apple-spring);
+    }
+    .apple-floating-toast.active {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* BOTTOM FLOATING DYNAMIC ISLAND NAVBAR (FOR MOBILE VIEW) */
+    .apple-bottom-island {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.18);
+      border-radius: 34px;
+      padding: 5px 8px;
+      display: none; /* Shown in mobile mode */
+      align-items: center;
+      gap: 6px;
+      z-index: 400;
+      max-width: 90%;
+    }
+
+    .mode-mobile .apple-bottom-island {
+      display: flex;
+    }
+
+    .island-tab-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 24px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ios-muted);
+      transition: all 0.25s var(--apple-smooth);
+    }
+    .island-tab-item.active {
+      color: var(--ios-blue);
+      background: var(--ios-blue-tint);
+      font-weight: 700;
+    }
+    .island-tab-item:active {
+      transform: scale(0.96);
+    }
+
+    /* ==========================================================================
+       PRINT SPECIFICATION: A4 LANDSCAPE OPTIMIZATION (FR-017 & DESIGN.MD 5.3)
+       ========================================================================== */
+    @page {
+      size: A4 landscape;
+      margin: 8mm 6mm 8mm 6mm;
+    }
+
+    @media print {
+      body {
+        background: #FFFFFF !important;
+        color: #000000 !important;
+        padding: 0 !important;
+      }
+
+      .tester-top-bar,
+      .report-action-buttons,
+      .apple-bottom-island,
+      .apple-floating-toast,
+      .apple-modal-backdrop,
+      .report-filter-bar,
+      .rekap-kpi-strip {
+        display: none !important;
+      }
+
+      .rekap-viewport-container {
+        padding: 0 !important;
+        max-width: 100% !important;
+        min-height: auto !important;
+      }
+
+      .rekap-main-paper {
+        box-shadow: none !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        gap: 12px !important;
+      }
+
+      .report-brand-header {
+        padding-bottom: 10px !important;
+        border-bottom: 2px solid #000000 !important;
+      }
+
+      .report-main-title {
+        font-size: 18pt !important;
+      }
+
+      .matrix-table-container {
+        border: 1px solid #000000 !important;
+        border-radius: 0 !important;
+        overflow: visible !important;
+      }
+
+      .rekap-master-table {
+        min-width: 100% !important;
+        font-size: 7.2pt !important;
+      }
+
+      .rekap-master-table thead th {
+        font-size: 7pt !important;
+        padding: 4px 1px !important;
+        border: 1px solid #475569 !important;
+        position: static !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* Weekend Header Print Red Preservation */
+      .rekap-master-table th.col-date.weekend {
+        background-color: #FF3B30 !important;
+        color: #FFFFFF !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .rekap-master-table td.col-sticky-1,
+      .rekap-master-table td.col-sticky-2,
+      .rekap-master-table td.col-sticky-3 {
+        position: static !important;
+        background: #FFFFFF !important;
+      }
+
+      .rekap-master-table tbody td {
+        height: 22px !important;
+        border: 0.5px solid #64748B !important;
+      }
+
+      .cell-temp-btn {
+        font-size: 7.2pt !important;
+        pointer-events: none !important;
+      }
+
+      .cell-temp-btn.overlimit {
+        background-color: #FEEBEA !important;
+        color: #DC2626 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        font-weight: 800 !important;
+      }
+
+      .shift-pill-badge {
+        font-size: 6.5pt !important;
+        padding: 1px 4px !important;
+        border: 0.5px solid #94A3B8 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .rekap-master-table td.col-weekend {
+        background-color: #FFF5F5 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .rekap-master-table tbody tr.shift-break td {
+        border-top: 1.5px solid #000000 !important;
+      }
+
+      .report-signoff-section {
+        margin-top: 14px !important;
+        padding-top: 10px !important;
+        page-break-inside: avoid !important;
+      }
+
+      .signoff-space {
+        height: 48px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP TESTER & AUDIT BAR (STICKY FOR TESTING) -->
+  <div class="tester-top-bar">
+    <div class="tester-left-group">
+      <strong style="color: #F8FAFC;">Modul 06: Rekapitulasi Suhu Bulanan</strong>
+      <span style="color: #475569;">|</span>
+
+      <span>Peran:</span>
+      <div class="tester-role-group">
+        <button class="tester-toggle-btn active" id="btnRoleAdmin" onclick="setRole('ADMIN')">Admin (Penuh)</button>
+        <button class="tester-toggle-btn" id="btnRoleMember" onclick="setRole('MEMBER')">Member (Lihat Saja)</button>
+      </div>
+
+      <span>Bulan:</span>
+      <div class="tester-role-group">
+        <button class="tester-toggle-btn active" id="btnMonthOct" onclick="switchMonth(2026, 10)">Okt 2026 (31)</button>
+        <button class="tester-toggle-btn" id="btnMonthSep" onclick="switchMonth(2026, 9)">Sep 2026 (30)</button>
+        <button class="tester-toggle-btn" id="btnMonthFeb" onclick="switchMonth(2026, 2)">Feb 2026 (28)</button>
+      </div>
+
+      <span>Gudang:</span>
+      <div class="tester-role-group">
+        <button class="tester-toggle-btn active" id="btnWhCK01" onclick="switchWarehouse('CK01')">CK01 Cikupa 1</button>
+        <button class="tester-toggle-btn" id="btnWhCK02" onclick="switchWarehouse('CK02')">CK02 Annex</button>
+      </div>
+    </div>
+
+    <div class="tester-right-group">
+      <span>Tampilan:</span>
+      <div class="tester-role-group">
+        <button class="tester-toggle-btn active" id="btnViewDesktop" onclick="setViewMode('desktop')">🖥️ Desktop Lebar</button>
+        <button class="tester-toggle-btn" id="btnViewMobile" onclick="setViewMode('mobile')">📱 Mobile View</button>
+      </div>
+
+      <button class="tester-action-pill" onclick="triggerPrint()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Cetak A4
+      </button>
+
+      <a href="../05-dashboard/index.html" class="version-pill">
+        ← Ke Dashboard (Modul 05)
+      </a>
+    </div>
+  </div>
+
+  <!-- FLOATING TOAST NOTIFICATION -->
+  <div id="toastNotification" class="apple-floating-toast">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34C759" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="toastMsg">Rekapitulasi dimuat</span>
+  </div>
+
+  <!-- REKAP VIEWPORT CONTAINER -->
+  <div class="rekap-viewport-container mode-desktop" id="viewportContainer">
+    
+    <div class="rekap-main-paper">
+      
+      <!-- 1. FORMAL BRANDING HEADER -->
+      <header class="report-brand-header">
+        <div class="brand-title-group">
+          <h1 class="report-main-title">Rekapitulasi Suhu Bulanan</h1>
+        </div>
+
+        <!-- Action Buttons (Print & Exports) -->
+        <div class="report-action-buttons">
+          <button type="button" class="btn-capsule-action primary" onclick="triggerPrint()" title="Cetak Format A4 Landscape (FR-017)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <span>Cetak PDF (A4)</span>
+          </button>
+
+          <button type="button" class="btn-capsule-action excel" onclick="exportToExcel()" title="Unduh File Excel .xlsx (FR-018)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span>Ekspor Excel (.xlsx)</span>
+          </button>
+
+          <button type="button" class="btn-capsule-action" onclick="exportToCSV()" title="Unduh Format CSV (FR-018)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Ekspor CSV</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- 2. COMPACT KPI SUMMARY STRIP (SUHU TERTINGGI & SUHU TERENDAH) -->
+      <section class="rekap-kpi-strip">
+        <div class="kpi-mini-card">
+          <span class="kpi-mini-label">Suhu Tertinggi</span>
+          <span class="kpi-mini-val red" id="kpiMax">35,5°C</span>
+          <span class="kpi-mini-sub" id="kpiMaxLoc">18 Okt • Storage A (13.00)</span>
+        </div>
+
+        <div class="kpi-mini-card">
+          <span class="kpi-mini-label">Suhu Terendah</span>
+          <span class="kpi-mini-val blue" id="kpiMin">21,2°C</span>
+          <span class="kpi-mini-sub" id="kpiMinLoc">05 Okt • Inbound (09.00)</span>
+        </div>
+      </section>
+
+      <!-- 3. FILTER & PARAMETER BAR -->
+      <section class="report-filter-bar">
+        <div class="filter-selector-group">
+          <!-- Month Selector -->
+          <div class="filter-item-wrap">
+            <span>Bulan:</span>
+            <select class="apple-select-input" id="selectMonth" onchange="onSelectMonthChange(this.value)">
+              <option value="10" selected>Oktober (31 Hari)</option>
+              <option value="9">September (30 Hari)</option>
+              <option value="2">Februari (28 Hari)</option>
+            </select>
+          </div>
+
+            <!-- Year Selector -->
+            <div class="filter-item-wrap">
+              <span>Tahun:</span>
+              <select class="apple-select-input" id="selectYear" onchange="switchYear(this.value)">
+                <option value="2026" selected>2026</option>
+                <option value="2025">2025</option>
+              </select>
+            </div>
+
+          <!-- Warehouse Selector -->
+          <div class="filter-item-wrap">
+            <span>Gudang:</span>
+            <select class="apple-select-input" id="selectWarehouse" onchange="switchWarehouse(this.value)">
+              <option value="CK01" selected>CK01 — Cikupa 1 (DC)</option>
+              <option value="CK02">CK02 — Cikupa Annex</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Legend (Penanda Visual) -->
+        <div class="filter-legend-group">
+          <div class="legend-chip">
+            <span class="legend-indicator weekend"></span>
+            <span>Sabtu/Minggu</span>
+          </div>
+          <div class="legend-chip">
+            <span class="legend-indicator overlimit"></span>
+            <span>Melebihi Batas (▲)</span>
+          </div>
+          <div class="legend-chip">
+            <span class="legend-indicator normal"></span>
+            <span>Normal</span>
+          </div>
+          <div class="legend-chip">
+            <span class="legend-indicator empty"></span>
+            <span>Belum Diinput (–)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. MASTER 31-DAY TEMPERATURE MATRIX TABLE -->
+      <section class="matrix-table-container">
+        <table class="rekap-master-table" id="matrixTable">
+          <thead id="matrixTableHead">
+            <!-- Dynamically populated via renderMatrix() -->
+          </thead>
+          <tbody id="matrixTableBody">
+            <!-- Dynamically populated via renderMatrix() -->
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 5. TANDA TANGAN & PENGESAHAN FISIK (STANDAR AUDIT ISO / CGP) -->
+      <section class="report-signoff-section">
+        <!-- Kolom 1: Dibuat Oleh -->
+        <div class="signoff-box">
+          <div class="signoff-role">Dibuat Oleh:</div>
+          <div class="signoff-role-sub">Petugas Lapangan / QC Checker</div>
+          <div class="signoff-space">
+            <span style="font-family:'Courier New', monospace; font-size:14px; font-weight:700; color:#1E3A8A; letter-spacing:1px; transform:rotate(-4deg); display:inline-block;">Budi S.</span>
+          </div>
+          <div class="signoff-name">( Budi Santoso )</div>
+          <div class="signoff-date" id="signoffDateCreated">Tanggal: 19 Oktober 2026</div>
+        </div>
+
+        <!-- Kolom 2: Diperiksa Oleh -->
+        <div class="signoff-box">
+          <div class="signoff-role">Diperiksa Oleh:</div>
+          <div class="signoff-role-sub">Supervisor Logistik & Cold Chain</div>
+          <div class="signoff-space">
+            <span style="font-family:'Courier New', monospace; font-size:13px; font-weight:700; color:#065F46; letter-spacing:1px; transform:rotate(-2deg); display:inline-block;">Hendra G.</span>
+          </div>
+          <div class="signoff-name">( Hendra Gunawan )</div>
+          <div class="signoff-date">Tanggal: 19 Oktober 2026</div>
+        </div>
+
+        <!-- Kolom 3: Diketahui Oleh -->
+        <div class="signoff-box">
+          <div class="signoff-role">Diketahui Oleh:</div>
+          <div class="signoff-role-sub">Warehouse & Operational Manager</div>
+          <div class="signoff-space">
+            <span style="font-family:'Courier New', monospace; font-size:14px; font-weight:700; color:#4C1D95; letter-spacing:1px; transform:rotate(3deg); display:inline-block;">Bambang P.</span>
+          </div>
+          <div class="signoff-name">( Ir. Bambang Prakoso )</div>
+          <div class="signoff-date">Tanggal: 19 Oktober 2026</div>
+        </div>
+      </section>
+
+      <!-- 6. FOOTER METADATA AUDIT -->
+      <footer class="report-footer-audit">
+        <div>
+          Dokumen Resmi Sistem Pencatatan Suhu Gudang • Integritas Berkas: <code>SHA256: 7f8a...9c2d</code>
+        </div>
+        <div>
+          Dicetak dari Vercel Serverless API • Waktu Resmi: <strong id="timestampFooterWIB">19 Oktober 2026, 00:08 WIB</strong>
+        </div>
+      </footer>
+
+    </div>
+
+    <!-- 7. APPLE HIG BOTTOM FLOATING DYNAMIC ISLAND NAVBAR (FOR MOBILE VIEW) -->
+    <nav class="apple-bottom-island">
+      <a href="../02-catat-suhu/index.html" class="island-tab-item">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+        <span>Catat Suhu</span>
+      </a>
+
+      <a href="../05-dashboard/index.html" class="island-tab-item">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+
+      <div class="island-tab-item active">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span>Rekap</span>
+      </div>
+
+      <a href="../04-pindah-warehouse/index.html" class="island-tab-item">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+        <span>Profil</span>
+      </a>
+
+      <div class="island-tab-item" id="navAdminTab" style="display:none;" onclick="alert('Admin Panel Master (Modul 07)')">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Admin</span>
+      </div>
+    </nav>
+
+  </div>
+
+  <!-- ==========================================================================
+       MODAL DETAIL TRANSAKSI & BUKTI FOTO (APPLE LIGHTBOX)
+       ========================================================================== -->
+  <div class="apple-modal-backdrop" id="modalCellDetail" onclick="handleModalBackdropClick(event)">
+    <div class="apple-modal-box">
+      
+      <div class="modal-head-row">
+        <div>
+          <span style="font-size:11px; font-weight:700; color:var(--ios-blue); text-transform:uppercase; letter-spacing:0.5px;" id="modalLocBadge">CK01 • INBOUND</span>
+          <h2 style="font-size:20px; font-weight:800; color:var(--ios-ink);" id="modalLocTitle">Storage Chiller A</h2>
+          <div style="font-size:12px; color:var(--ios-muted); margin-top:2px;" id="modalDateTimeSubtitle">18 Oktober 2026 • Pukul 13.00 WIB</div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeCellDetailModal()">✕</button>
+      </div>
+
+      <!-- Foto Bukti Kanvas -->
+      <div class="modal-photo-canvas-preview">
+        <!-- Simulated Real Thermometer Photo -->
+        <img src="https://images.unsplash.com/photo-1584281722573-b3c43f07a0c8?auto=format&fit=crop&w=600&q=80" alt="Bukti Suhu" class="modal-photo-img" id="modalPhotoImg">
+        <div class="modal-photo-watermark-overlay">
+          <div style="font-weight:700;" id="modalWatermarkTitle">CK01 — STORAGE CHILLER A • 13.00 WIB</div>
+          <div id="modalWatermarkMeta">18 Okt 2026, 13:12 WIB • Petugas: Budi Santoso</div>
+          <div style="color:#38BDF8; font-weight:600;" id="modalWatermarkGps">GPS: -6.1751, 106.8650 (Akurasi: 8m)</div>
+        </div>
+      </div>
+
+      <!-- Metadata Audit Grid -->
+      <div class="modal-meta-grid">
+        <div class="modal-meta-card">
+          <span class="modal-meta-card-label">Suhu Tercatat</span>
+          <span class="modal-meta-card-val" id="modalTempVal">23,4°C</span>
+        </div>
+        <div class="modal-meta-card">
+          <span class="modal-meta-card-label">Status Evaluasi</span>
+          <span class="modal-meta-card-val" id="modalStatusVal">NORMAL</span>
+        </div>
+        <div class="modal-meta-card">
+          <span class="modal-meta-card-label">Petugas Pencatat</span>
+          <span class="modal-meta-card-val" id="modalOfficerVal">Budi Santoso</span>
+        </div>
+        <div class="modal-meta-card">
+          <span class="modal-meta-card-label">WhatsApp Gateway</span>
+          <span class="modal-meta-card-val green" id="modalWaStatusVal">SENT (Terkirim)</span>
+        </div>
+        <div class="modal-meta-card full">
+          <span class="modal-meta-card-label">Google Drive File Path</span>
+          <span class="modal-meta-card-val" style="font-size:11px; word-break:break-all; font-weight:500;" id="modalDrivePath">
+            Warehouse Temperature Report / CK01 — Cikupa 1 / 2026 / 10 - Oktober / 2026-10-18_Storage_A_13.00.jpg
+          </span>
+        </div>
+      </div>
+
+      <!-- Action: Edit Transaksi for Admin (FR-012) -->
+      <div id="adminActionSection">
+        <button type="button" class="btn-capsule-action" style="width:100%; justify-content:center; height:42px;" id="btnToggleEditForm" onclick="toggleEditForm()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span>Ubah Data Transaksi (Admin FR-012)</span>
+        </button>
+
+        <!-- Edit Form Collapsible -->
+        <div class="edit-submodal-box" id="editFormBox">
+          <div style="font-size:13px; font-weight:700; color:var(--ios-ink);">Form Koreksi Suhu (Audit Trail Wajib)</div>
+          
+          <div>
+            <label style="font-size:11px; font-weight:600; color:var(--ios-muted); display:block; margin-bottom:2px;">Suhu Baru (°C) *</label>
+            <input type="text" id="inputEditTemp" class="apple-select-input" style="width:100%; height:38px; font-size:15px; font-weight:700;" placeholder="Contoh: 23,8">
+          </div>
+
+          <div>
+            <label style="font-size:11px; font-weight:600; color:var(--ios-muted); display:block; margin-bottom:2px;">Alasan Perubahan (Wajib diisi sesuai PRD) *</label>
+            <textarea id="inputEditReason" rows="2" class="apple-select-input" style="width:100%; font-size:12px; resize:none;" placeholder="Contoh: Koreksi pembacaan alat kalibrasi ulang"></textarea>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn-capsule-action" style="flex:1; justify-content:center;" onclick="toggleEditForm()">Batal</button>
+            <button type="button" class="btn-capsule-action primary" style="flex:2; justify-content:center;" onclick="submitEditTransaction()">Simpan Perubahan</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Member notice if locked -->
+      <div id="memberLockedNotice" style="display:none; padding:10px 14px; background:#F8FAFC; border-radius:12px; font-size:12px; color:var(--ios-muted); text-align:center;">
+        🔒 Transaksi ini telah tersimpan dan terkunci permanen untuk akun Member (BR-03).
+      </div>
+
+      <button type="button" class="btn-capsule-action" style="width:100%; justify-content:center; height:42px; background:var(--ios-subtle); color:var(--ios-ink);" onclick="closeCellDetailModal()">
+        Tutup Jendela
+      </button>
+
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT: LOGIC, DATA ENGINE, MATRIX RENDERER, PRINT & EXPORTS -->
+  <script>
+    // State
+    let currentRole = 'ADMIN';
+    let currentYear = 2026;
+    let currentMonth = 10; // Oktober
+    let currentWh = 'CK01';
+    let currentViewMode = 'desktop';
+
+    // Master Locations & Shifts
+    const MASTER_LOCATIONS = [
+      { id: 'LOC-01', name: 'Inbound' },
+      { id: 'LOC-02', name: 'Storage A' },
+      { id: 'LOC-03', name: 'Storage B' },
+      { id: 'LOC-04', name: 'D05 Cold' }
+    ];
+
+    const MASTER_PERIODS = [
+      { id: 'PER-01', name: '09.00', time: '09:00 WIB' },
+      { id: 'PER-02', name: '13.00', time: '13:00 WIB' },
+      { id: 'PER-03', name: '17.00', time: '17:00 WIB' }
+    ];
+
+    // Mock Data Store: Simulated Transactions
+    // Format: key `${day}_${periodId}_${locId}` => { temp: '22,4', isOver: false, officer: 'Budi Santoso', time: '09:14 WIB', wa: 'SENT' }
+    const TRANSACTION_DB = {};
+
+    // Seed Realistic Data for October 2026
+    function seedMockData() {
+      // Days 1 through 18 have rich realistic data
+      for (let day = 1; day <= 18; day++) {
+        MASTER_PERIODS.forEach((per, pIdx) => {
+          MASTER_LOCATIONS.forEach((loc, lIdx) => {
+            const key = `${day}_${per.id}_${loc.id}`;
+            
+            // Overlimit event 1: Day 18, 13.00, Storage A => 35,5°C
+            if (day === 18 && per.id === 'PER-02' && loc.id === 'LOC-02') {
+              TRANSACTION_DB[key] = { temp: '35,5', isOver: true, officer: 'Budi Santoso', time: '13:12 WIB', wa: 'SENT' };
+            }
+            // Overlimit event 2: Day 07, 13.00, D05 Cold => 26,8°C (limit 25.0)
+            else if (day === 7 && per.id === 'PER-02' && loc.id === 'LOC-04') {
+              TRANSACTION_DB[key] = { temp: '26,8', isOver: true, officer: 'Ahmad Fauzi', time: '13:05 WIB', wa: 'SENT' };
+            }
+            // Normal values between 21.2 and 24.6
+            else if (day < 18 || (day === 18 && per.id !== 'PER-03')) {
+              // Deterministic pseudo-random
+              const base = 21.2 + ((day * 7 + pIdx * 11 + lIdx * 13) % 32) / 10;
+              const formatted = base.toFixed(1).replace('.', ',');
+              TRANSACTION_DB[key] = {
+                temp: formatted,
+                isOver: false,
+                officer: day % 2 === 0 ? 'Budi Santoso' : 'Ahmad Fauzi',
+                time: `${per.name.replace('.', ':')} WIB`,
+                wa: 'SENT'
+              };
+            }
+          });
+        });
+      }
+
+      // Day 19 (Hari Ini): Shift 09.00 & 13.00 filled
+      [ 'PER-01', 'PER-02' ].forEach(perId => {
+        MASTER_LOCATIONS.forEach((loc, lIdx) => {
+          const key = `19_${perId}_${loc.id}`;
+          const base = 22.1 + (lIdx * 0.7);
+          TRANSACTION_DB[key] = {
+            temp: base.toFixed(1).replace('.', ','),
+            isOver: false,
+            officer: 'Budi Santoso',
+            time: '09:12 WIB',
+            wa: 'SENT'
+          };
+        });
+      });
+      // Days 20 to 31 are unrecorded / future (Empty –) per BR-09
+    }
+
+    // Days in Month Helper
+    function getDaysInMonth(year, month) {
+      return new Date(year, month, 0).getDate();
+    }
+
+    // Is Weekend Helper (Saturday = 6, Sunday = 0)
+    function isWeekend(year, month, day) {
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = date.getDay();
+      return dayOfWeek === 0 || dayOfWeek === 6; // Sunday or Saturday
+    }
+
+    // Month Names
+    const MONTH_NAMES_ID = [
+      '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    // Initialize Matrix View
+    function renderMatrix() {
+      const totalDays = getDaysInMonth(currentYear, currentMonth);
+      const thead = document.getElementById('matrixTableHead');
+      const tbody = document.getElementById('matrixTableBody');
+
+      // Update Labels
+      // Build THEAD
+      let theadHtml = `<tr>
+        <th class="col-sticky-1" rowspan="2">No</th>
+        <th class="col-sticky-2" rowspan="2">Titik Lokasi</th>
+        <th class="col-sticky-3" rowspan="2">Periode Check</th>
+        <th colspan="${totalDays}" style="background:#E2E8F0; color:#1E293B; font-weight:800; letter-spacing:0.4px;">
+          TANGGAL PENGECEKAN SUHU BULAN ${MONTH_NAMES_ID[currentMonth].toUpperCase()} ${currentYear}
+        </th>
+        <th class="col-summary" colspan="2" style="background:#E2E8F0; color:#1E293B;">RINGKASAN</th>
+      </tr>
+      <tr>`;
+
+      // Date headers (1 to totalDays)
+      for (let day = 1; day <= totalDays; day++) {
+        const weekend = isWeekend(currentYear, currentMonth, day);
+        const dayClass = weekend ? 'col-date weekend' : 'col-date';
+        const titleTip = weekend ? `Akhir Pekan (Sabtu/Minggu) • Tgl ${day}` : `Hari Kerja • Tgl ${day}`;
+        theadHtml += `<th class="${dayClass}" title="${titleTip}">${day}</th>`;
+      }
+
+      // Summary subheaders (Only Min and Max kept per user red-mark instructions)
+      theadHtml += `
+        <th class="col-summary" title="Suhu Terendah">Min</th>
+        <th class="col-summary" title="Suhu Tertinggi">Max</th>
+      </tr>`;
+      thead.innerHTML = theadHtml;
+
+      // Build TBODY
+      let tbodyHtml = '';
+      let rowCounter = 1;
+
+      let totalFilledSlots = 0;
+      let totalSlotsCount = 0;
+      let allTemps = [];
+      let totalOverlimits = 0;
+      let highestTemp = -999;
+      let highestMeta = '-';
+      let lowestTemp = 999;
+      let lowestMeta = '-';
+
+      MASTER_PERIODS.forEach((per, pIdx) => {
+        const shiftClass = pIdx === 0 ? 'shift-pagi-row' : (pIdx === 1 ? 'shift-siang-row' : 'shift-sore-row');
+        const badgeClass = pIdx === 0 ? 'pagi' : (pIdx === 1 ? 'siang' : 'sore');
+        const shiftIcon = pIdx === 0 ? '☀️' : (pIdx === 1 ? '🌤️' : '🌙');
+
+        MASTER_LOCATIONS.forEach((loc, lIdx) => {
+          totalSlotsCount += totalDays;
+          const trClasses = [
+            shiftClass,
+            lIdx === 0 && pIdx > 0 ? 'shift-break' : ''
+          ].filter(Boolean).join(' ');
+
+          tbodyHtml += `<tr class="${trClasses}">`;
+
+          // No
+          tbodyHtml += `<td class="col-sticky-1">${rowCounter}</td>`;
+
+          // Location
+          tbodyHtml += `<td class="col-sticky-2">${loc.name}</td>`;
+
+          // Periode Check - On EVERY row to eliminate the sticky rowspan bug completely!
+          tbodyHtml += `<td class="col-sticky-3">
+            <span class="shift-pill-badge ${badgeClass}">${shiftIcon} ${per.name}</span>
+          </td>`;
+
+          // Row Summary Accumulators
+          let rowTemps = [];
+          let rowOverCount = 0;
+
+          // Days 1..totalDays
+          for (let day = 1; day <= totalDays; day++) {
+            const weekend = isWeekend(currentYear, currentMonth, day);
+            const tdClass = weekend ? 'col-weekend' : '';
+            const key = `${day}_${per.id}_${loc.id}`;
+            const tx = TRANSACTION_DB[key];
+
+            if (tx) {
+              totalFilledSlots++;
+              const numVal = parseFloat(tx.temp.replace(',', '.'));
+              rowTemps.push(numVal);
+              allTemps.push(numVal);
+
+              if (numVal > highestTemp) {
+                highestTemp = numVal;
+                highestMeta = `${day < 10 ? '0' + day : day} ${MONTH_NAMES_ID[currentMonth].slice(0,3)} • ${loc.name} (${per.name})`;
+              }
+              if (numVal < lowestTemp) {
+                lowestTemp = numVal;
+                lowestMeta = `${day < 10 ? '0' + day : day} ${MONTH_NAMES_ID[currentMonth].slice(0,3)} • ${loc.name} (${per.name})`;
+              }
+
+              if (tx.isOver) {
+                rowOverCount++;
+                totalOverlimits++;
+                tbodyHtml += `<td class="${tdClass}">
+                  <button type="button" class="cell-temp-btn overlimit" onclick="openCellDetail(${day}, '${per.id}', '${loc.id}')" title="Klik untuk rincian: ${tx.temp}°C (MELEBIHI BATAS)">
+                    ${tx.temp}<span class="tri">▲</span>
+                  </button>
+                </td>`;
+              } else {
+                tbodyHtml += `<td class="${tdClass}">
+                  <button type="button" class="cell-temp-btn" onclick="openCellDetail(${day}, '${per.id}', '${loc.id}')" title="Klik untuk rincian: ${tx.temp}°C (Normal)">
+                    ${tx.temp}
+                  </button>
+                </td>`;
+              }
+            } else {
+              // BR-09: Selalu strip –, Jangan pernah nol
+              tbodyHtml += `<td class="${tdClass}">
+                <button type="button" class="cell-temp-btn empty" onclick="openCellDetail(${day}, '${per.id}', '${loc.id}', true)" title="Slot Belum Diisi (BR-09)">
+                  –
+                </button>
+              </td>`;
+            }
+          }
+
+          // Row Summaries: Min & Max only
+          if (rowTemps.length > 0) {
+            const min = Math.min(...rowTemps).toFixed(1).replace('.', ',');
+            const max = Math.max(...rowTemps).toFixed(1).replace('.', ',');
+            const maxNum = Math.max(...rowTemps);
+            const maxClass = maxNum > 25.0 ? 'col-summary val-max' : 'col-summary';
+            tbodyHtml += `
+              <td class="col-summary val-min">${min}</td>
+              <td class="${maxClass}">${max}</td>
+            `;
+          } else {
+            tbodyHtml += `
+              <td class="col-summary">–</td>
+              <td class="col-summary">–</td>
+            `;
+          }
+
+          tbodyHtml += `</tr>`;
+          rowCounter++;
+        });
+      });
+
+      tbody.innerHTML = tbodyHtml;
+
+      // Update KPI Cards (Suhu Tertinggi & Suhu Terendah)
+      if (allTemps.length > 0) {
+        const elMax = document.getElementById('kpiMax');
+        const elMaxLoc = document.getElementById('kpiMaxLoc');
+        const elMin = document.getElementById('kpiMin');
+        const elMinLoc = document.getElementById('kpiMinLoc');
+        if (elMax) elMax.textContent = `${highestTemp.toFixed(1).replace('.', ',')}°C`;
+        if (elMaxLoc) elMaxLoc.textContent = highestMeta;
+        if (elMin) elMin.textContent = `${lowestTemp.toFixed(1).replace('.', ',')}°C`;
+        if (elMinLoc) elMinLoc.textContent = lowestMeta;
+      }
+    }
+
+    // Role Switching
+    function setRole(role) {
+      currentRole = role;
+      document.getElementById('btnRoleAdmin').classList.toggle('active', role === 'ADMIN');
+      document.getElementById('btnRoleMember').classList.toggle('active', role === 'MEMBER');
+
+      const adminSec = document.getElementById('adminActionSection');
+      const memNotice = document.getElementById('memberLockedNotice');
+      const navAdmin = document.getElementById('navAdminTab');
+
+      if (role === 'ADMIN') {
+        adminSec.style.display = 'block';
+        memNotice.style.display = 'none';
+        if (navAdmin) navAdmin.style.display = 'inline-flex';
+        showToast('Mode Administrator: Akses koreksi transaksi & cetak penuh');
+      } else {
+        adminSec.style.display = 'none';
+        memNotice.style.display = 'block';
+        if (navAdmin) navAdmin.style.display = 'none';
+        showToast('Mode Member: Akses peninjauan baca laporan (Read-Only)');
+      }
+    }
+
+    // Month Switching
+    function switchMonth(year, month) {
+      currentYear = year;
+      currentMonth = month;
+      document.getElementById('selectMonth').value = month;
+
+      document.getElementById('btnMonthOct').classList.toggle('active', month === 10);
+      document.getElementById('btnMonthSep').classList.toggle('active', month === 9);
+      document.getElementById('btnMonthFeb').classList.toggle('active', month === 2);
+
+      renderMatrix();
+      showToast(`Memuat data rekapitulasi: ${MONTH_NAMES_ID[month]} ${year}`);
+    }
+
+    function onSelectMonthChange(val) {
+      switchMonth(currentYear, parseInt(val, 10));
+    }
+
+    // Year Switching
+    function switchYear(val) {
+      currentYear = parseInt(val, 10);
+      document.getElementById('selectYear').value = val;
+      renderMatrix();
+      showToast(`Tahun dialihkan ke: ${val}`);
+    }
+
+    // Warehouse Switching
+    function switchWarehouse(whCode) {
+      currentWh = whCode;
+      document.getElementById('selectWarehouse').value = whCode;
+      document.getElementById('btnWhCK01').classList.toggle('active', whCode === 'CK01');
+      document.getElementById('btnWhCK02').classList.toggle('active', whCode === 'CK02');
+
+      renderMatrix();
+      showToast(`Beralih ke gudang: ${whCode === 'CK01' ? 'Cikupa 1 (DC)' : 'Cikupa Annex'}`);
+    }
+
+    // Viewport Mode Switching (Desktop vs Mobile)
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      const container = document.getElementById('viewportContainer');
+      document.getElementById('btnViewDesktop').classList.toggle('active', mode === 'desktop');
+      document.getElementById('btnViewMobile').classList.toggle('active', mode === 'mobile');
+
+      if (mode === 'desktop') {
+        container.className = 'rekap-viewport-container mode-desktop';
+        showToast('Tampilan Desktop: Lebar penuh dengan tabel matriks optimal');
+      } else {
+        container.className = 'rekap-viewport-container mode-mobile';
+        showToast('Tampilan Mobile: Lebar ponsel 440px dengan horizontal scroll & island navbar');
+      }
+    }
+
+    // Modal Interaction (Detail Sel)
+    let activeCellMeta = null;
+
+    function openCellDetail(day, periodId, locId, isEmpty = false) {
+      const modal = document.getElementById('modalCellDetail');
+      const per = MASTER_PERIODS.find(p => p.id === periodId);
+      const loc = MASTER_LOCATIONS.find(l => l.id === locId);
+      const key = `${day}_${periodId}_${locId}`;
+      const tx = TRANSACTION_DB[key];
+
+      activeCellMeta = { day, periodId, locId, key };
+
+      // Populate Modal Fields
+      document.getElementById('modalLocBadge').textContent = `${currentWh} • ${loc.name.toUpperCase()}`;
+      document.getElementById('modalLocTitle').textContent = loc.name;
+      document.getElementById('modalDateTimeSubtitle').textContent = `${day} ${MONTH_NAMES_ID[currentMonth]} ${currentYear} • Pukul ${per.name} WIB`;
+      document.getElementById('modalWatermarkTitle').textContent = `${currentWh} — ${loc.name.toUpperCase()} • ${per.name} WIB`;
+
+      if (isEmpty || !tx) {
+        document.getElementById('modalTempVal').textContent = '– (Belum Diisi)';
+        document.getElementById('modalTempVal').className = 'modal-meta-card-val';
+        document.getElementById('modalStatusVal').textContent = 'BELUM DIINPUT (BR-09)';
+        document.getElementById('modalStatusVal').className = 'modal-meta-card-val';
+        document.getElementById('modalOfficerVal').textContent = '–';
+        document.getElementById('modalWaStatusVal').textContent = '–';
+        document.getElementById('modalWatermarkMeta').textContent = `Slot jadwal belum diisi petugas`;
+        document.getElementById('modalWatermarkGps').textContent = 'GPS: Belum tercatat';
+        document.getElementById('btnToggleEditForm').style.display = 'none';
+      } else {
+        document.getElementById('modalTempVal').textContent = `${tx.temp}°C`;
+        document.getElementById('modalTempVal').className = tx.isOver ? 'modal-meta-card-val red' : 'modal-meta-card-val green';
+        document.getElementById('modalStatusVal').textContent = tx.isOver ? 'MELEBIHI BATAS (> 25°C)' : 'NORMAL';
+        document.getElementById('modalStatusVal').className = tx.isOver ? 'modal-meta-card-val red' : 'modal-meta-card-val green';
+        document.getElementById('modalOfficerVal').textContent = tx.officer;
+        document.getElementById('modalWaStatusVal').textContent = tx.wa === 'SENT' ? 'SENT (Terkirim via Fonnte)' : 'PENDING';
+        document.getElementById('modalWatermarkMeta').textContent = `${day} ${MONTH_NAMES_ID[currentMonth].slice(0,3)} ${currentYear}, ${tx.time} • Petugas: ${tx.officer}`;
+        document.getElementById('modalWatermarkGps').textContent = 'GPS: -6.1751, 106.8650 (Akurasi: 8m)';
+        document.getElementById('btnToggleEditForm').style.display = currentRole === 'ADMIN' ? 'inline-flex' : 'none';
+        
+        // Preset input edit
+        document.getElementById('inputEditTemp').value = tx.temp;
+        document.getElementById('inputEditReason').value = '';
+      }
+
+      document.getElementById('editFormBox').style.display = 'none';
+      modal.style.display = 'flex';
+    }
+
+    function closeCellDetailModal() {
+      document.getElementById('modalCellDetail').style.display = 'none';
+    }
+
+    function handleModalBackdropClick(e) {
+      if (e.target.id === 'modalCellDetail') {
+        closeCellDetailModal();
+      }
+    }
+
+    function toggleEditForm() {
+      const box = document.getElementById('editFormBox');
+      box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function submitEditTransaction() {
+      const newTemp = document.getElementById('inputEditTemp').value.trim();
+      const reason = document.getElementById('inputEditReason').value.trim();
+
+      if (!newTemp) {
+        alert('Harap masukkan angka suhu koreksi baru.');
+        return;
+      }
+      if (!reason) {
+        alert('Alasan perubahan WAJIB diisi untuk jejak audit (FR-012 / AUDIT_LOGS).');
+        return;
+      }
+
+      if (activeCellMeta && activeCellMeta.key) {
+        const numVal = parseFloat(newTemp.replace(',', '.'));
+        const isOver = numVal > 25.0;
+        
+        TRANSACTION_DB[activeCellMeta.key] = {
+          temp: newTemp,
+          isOver: isOver,
+          officer: 'Admin Suhu (Koreksi)',
+          time: 'Koreksi Server WIB',
+          wa: isOver ? 'SENT' : 'NORMAL'
+        };
+
+        renderMatrix();
+        closeCellDetailModal();
+        showToast(`Transaksi berhasil diperbarui ke ${newTemp}°C (Audit Log tercatat)`);
+      }
+    }
+
+    // ==========================================================================
+    // EXPORT & PRINT ENGINES
+    // ==========================================================================
+
+    // 1. Print A4 Landscape (FR-017)
+    function triggerPrint() {
+      showToast('Menyiapkan format cetak A4 Landscape...');
+      setTimeout(() => {
+        window.print();
+      }, 300);
+    }
+
+    // 2. Export to Excel .xlsx (FR-018)
+    function exportToExcel() {
+      showToast('Membuat file Excel (.xlsx)...');
+      
+      try {
+        if (typeof XLSX !== 'undefined') {
+          // Generate sheet from table DOM
+          const table = document.getElementById('matrixTable');
+          const wb = XLSX.utils.book_new();
+          const ws = XLSX.utils.table_to_sheet(table);
+
+          // Add worksheet to workbook
+          XLSX.utils.book_append_sheet(wb, ws, `Rekap_${MONTH_NAMES_ID[currentMonth]}`);
+
+          // Trigger download
+          const fileName = `Rekap_Suhu_${currentWh}_${MONTH_NAMES_ID[currentMonth]}_${currentYear}.xlsx`;
+          XLSX.writeFile(wb, fileName);
+          showToast(`File ${fileName} berhasil diunduh!`);
+          return;
+        }
+      } catch (err) {
+        console.warn('SheetJS error, falling back to CSV:', err);
+      }
+
+      // Fallback to CSV if offline or script blocked
+      exportToCSV();
+    }
+
+    // 3. Export to CSV (FR-018 with UTF-8 BOM)
+    function exportToCSV() {
+      showToast('Mengekspor data ke file CSV...');
+      const totalDays = getDaysInMonth(currentYear, currentMonth);
+
+      let csv = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+      csv += `"PT LOGISTIK MAKMUR JAYA — REKAPITULASI SUHU BULANAN"\n`;
+      csv += `"Bulan:","${MONTH_NAMES_ID[currentMonth]} ${currentYear}","Warehouse:","${currentWh}","Batas:","<= 25,0 C"\n\n`;
+
+      // Header Row 1
+      csv += `"No","Titik Lokasi","Jadwal Shift"`;
+      for (let day = 1; day <= totalDays; day++) {
+        const weekend = isWeekend(currentYear, currentMonth, day);
+        csv += `,"Tgl ${day}${weekend ? ' (Weekend)' : ''}"`;
+      }
+      csv += `,"Min (C)","Max (C)"\n`;
+
+      // Data Rows
+      let counter = 1;
+      MASTER_PERIODS.forEach(per => {
+        MASTER_LOCATIONS.forEach(loc => {
+          csv += `"${counter}","${loc.name}","${per.name} WIB"`;
+          let rowTemps = [];
+          let overCount = 0;
+
+          for (let day = 1; day <= totalDays; day++) {
+            const tx = TRANSACTION_DB[`${day}_${per.id}_${loc.id}`];
+            if (tx) {
+              const numVal = parseFloat(tx.temp.replace(',', '.'));
+              rowTemps.push(numVal);
+              if (tx.isOver) overCount++;
+              csv += `,"${tx.temp}${tx.isOver ? '▲' : ''}"`;
+            } else {
+              csv += `,"–"`; // BR-09: strip, not 0
+            }
+          }
+
+          if (rowTemps.length > 0) {
+            const min = Math.min(...rowTemps).toFixed(1).replace('.', ',');
+            const max = Math.max(...rowTemps).toFixed(1).replace('.', ',');
+            csv += `,"${min}","${max}"\n`;
+          } else {
+            csv += `,"–","–"\n`;
+          }
+          counter++;
+        });
+      });
+
+      // Trigger download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const fileName = `Rekap_Suhu_${currentWh}_${MONTH_NAMES_ID[currentMonth]}_${currentYear}.csv`;
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast(`File ${fileName} berhasil diunduh!`);
+    }
+
+    // Toast Utility
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.classList.add('active');
+      setTimeout(() => {
+        toast.classList.remove('active');
+      }, 2500);
+    }
+
+    // Startup
+    document.addEventListener('DOMContentLoaded', () => {
+      seedMockData();
+      renderMatrix();
+    });
+  </script>
+</body>
+</html>

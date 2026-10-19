@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Modul 05: Dashboard Pemantauan Operasional (Apple HIG Bento Grid v1.0) — Prototype</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <style>
+    /* 0. AUTHENTIC SF PRO & INTER WEBFONTS (CROSS-PLATFORM PIXEL PERFECT) */
+    @import url('https://fonts.cdnfonts.com/css/sf-pro-display');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    /* APPLE STORE iOS HIG TOKENS & ULTRA-SMOOTH CURVES */
+    :root {
+      --ios-bg: #F5F5F7;
+      --ios-card: #FFFFFF;
+      --ios-ink: #1D1D1F;
+      --ios-muted: #86868B;
+      --ios-subtle: #F2F2F7;
+      --ios-blue: #0071E3;
+      --ios-blue-hover: #0077ED;
+      --ios-blue-tint: #E8F2FD;
+      --ios-green: #34C759;
+      --ios-green-tint: #E8F8ED;
+      --ios-red: #FF3B30;
+      --ios-red-tint: #FEEBEA;
+      --ios-orange: #FF9500;
+      --ios-orange-tint: #FFF4E5;
+      --ios-indigo: #5856D6;
+      --ios-indigo-tint: #EEEDFA;
+      --ios-line: rgba(0, 0, 0, 0.06);
+      --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', -apple-system-headline, sans-serif;
+      --apple-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+      --apple-spring: cubic-bezier(0.2, 0.9, 0.25, 1);
+      --sf-stroke: 1.85px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: #0F172A; /* Slate 900 desktop backdrop */
+      color: var(--ios-ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    .num {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'tnum' 1;
+    }
+
+    .sf-icon-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      line-height: 1;
+      vertical-align: middle;
+    }
+    .sf-icon {
+      display: block;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* TOP TESTER & AUDIT BAR (STICKY FOR TESTING) */
+    .tester-top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid #334155;
+      padding: 9px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 12px;
+      color: #94A3B8;
+    }
+
+    .version-pill {
+      background: #334155;
+      color: #94A3B8;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 11px;
+      text-decoration: none;
+      transition: all 0.2s var(--apple-smooth);
+    }
+    .version-pill.active {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    .tester-role-group {
+      display: inline-flex;
+      align-items: center;
+      background: #0B1120;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      padding: 2px 3px;
+      gap: 2px;
+    }
+
+    .tester-toggle-btn {
+      background: transparent;
+      color: #94A3B8;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s var(--apple-smooth);
+    }
+    .tester-toggle-btn.active {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    .tester-action-pill {
+      background: #334155;
+      color: #FFFFFF;
+      border: 1px solid #475569;
+      padding: 4px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .tester-action-pill:hover {
+      background: var(--ios-blue);
+    }
+
+    /* DEVICE SHELL CONTAINER (APPLE STORE iOS VIEWPORT) */
+    .device-shell {
+      width: 100%;
+      max-width: 440px;
+      background-color: var(--ios-bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.45);
+      padding-bottom: 150px; /* Ample space so matrix & cards are never covered by island navbar */
+      transition: background 0.45s var(--apple-smooth);
+    }
+
+    /* SMOOTH APPLE VIEW ENTRANCE (Synchronized content transition) */
+    @keyframes appleViewEnter {
+      from {
+        opacity: 0.88;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .apple-header,
+    .dashboard-context-bar,
+    .bento-kpi-grid,
+    .matrix-section,
+    .transactions-section {
+      animation: appleViewEnter 0.22s var(--apple-smooth) both;
+    }
+
+    /* 1. APPLE STORE HEADER: BALANCED, CLEAN & HIGH-CONTRAST */
+    .apple-header {
+      padding: 24px 20px 14px 20px;
+    }
+
+    .header-main-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .header-title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .apple-large-title {
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--ios-ink);
+      letter-spacing: -0.6px;
+      line-height: 1.08;
+    }
+
+    .header-sub-meta {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ios-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .user-profile-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #FFFFFF;
+      padding: 4px 10px 4px 5px;
+      border-radius: 30px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+      flex-shrink: 0;
+    }
+    .user-profile-pill:active {
+      transform: scale(0.96);
+    }
+
+    .avatar-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0284C7 0%, #0071E3 100%);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      transition: all 0.25s var(--apple-smooth);
+    }
+
+    .user-meta-group {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+    }
+    .user-meta-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ios-ink);
+      line-height: 1.1;
+    }
+    .user-meta-role {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--ios-muted);
+    }
+
+    /* 2. FILTER & CONTEXT BAR (APPLE HIG SEGMENTED & DATE JUMP) */
+    .dashboard-context-bar {
+      padding: 0 20px 14px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* APPLE NATIVE SEGMENTED CONTROL FOR WAREHOUSE FILTER */
+    .apple-segmented-wh {
+      display: flex;
+      background: rgba(118, 118, 128, 0.12);
+      border-radius: 12px;
+      padding: 3px;
+      gap: 2px;
+      width: 100%;
+    }
+    .wh-segment-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 7px 8px;
+      border-radius: 9px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ios-muted);
+      cursor: pointer;
+      transition: all 0.2s var(--apple-smooth);
+      text-align: center;
+      white-space: nowrap;
+    }
+    .wh-segment-btn.active {
+      background: #FFFFFF;
+      color: var(--ios-ink);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      font-weight: 700;
+    }
+
+    .date-filter-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .date-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 12px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ios-ink);
+    }
+    .date-jump-btn {
+      background: var(--ios-blue-tint);
+      color: var(--ios-blue);
+      border: none;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .date-jump-btn:hover {
+      background: var(--ios-blue);
+      color: #FFFFFF;
+    }
+
+    /* 3. BENTO KPI GRID (ORDERLY APPLE METRIC CARDS) */
+    .bento-kpi-grid {
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .bento-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 16px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bento-card.hero-card {
+      grid-column: span 2;
+      background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+      border: 1px solid rgba(0, 113, 227, 0.12);
+    }
+
+    .bento-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .bento-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ios-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .bento-icon-squircle {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      flex-shrink: 0;
+    }
+    .bento-icon-squircle.blue { background: var(--ios-blue); }
+    .bento-icon-squircle.orange { background: var(--ios-orange); }
+    .bento-icon-squircle.indigo { background: var(--ios-indigo); }
+    .bento-icon-squircle.red { background: var(--ios-red); }
+
+    .bento-value-huge {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--ios-ink);
+      line-height: 1.05;
+      letter-spacing: -0.5px;
+    }
+    .bento-value-huge.red {
+      color: var(--ios-red);
+    }
+    .bento-value-huge.green {
+      color: var(--ios-green);
+    }
+
+    .bento-subtext {
+      font-size: 12px;
+      color: var(--ios-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 500;
+    }
+
+    /* Mini Progress Bar */
+    .bento-progress-track {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--ios-subtle);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .bento-progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--ios-blue);
+      transition: width 0.4s var(--apple-smooth);
+    }
+
+    /* 4. SLOT MATRIX SECTION (PRD 9.2 & DESIGN.md 5.3) */
+    .matrix-section {
+      padding: 0 20px;
+      margin-bottom: 24px;
+    }
+
+    .section-title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .section-title-row h2 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--ios-ink);
+      letter-spacing: -0.3px;
+    }
+    .section-title-row span {
+      font-size: 12px;
+      color: var(--ios-muted);
+      font-weight: 500;
+    }
+
+    .matrix-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      padding: 16px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .matrix-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 6px;
+      text-align: center;
+    }
+
+    .matrix-th-corner {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ios-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 6px;
+      min-width: 68px;
+    }
+    .matrix-th-col {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ios-ink);
+      padding: 6px 8px;
+      min-width: 96px;
+    }
+
+    .matrix-td-row-label {
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ios-ink);
+      padding: 6px;
+      white-space: nowrap;
+    }
+
+    /* INTERACTIVE TEMPERATURE CELLS */
+    .matrix-cell-btn {
+      width: 100%;
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 4px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: #FFFFFF;
+    }
+    .matrix-cell-btn:active {
+      transform: scale(0.95);
+    }
+
+    .matrix-cell-btn.normal {
+      background: var(--ios-green-tint);
+      border-color: rgba(52, 199, 89, 0.35);
+      color: #15803D;
+    }
+    .matrix-cell-btn.over {
+      background: var(--ios-red-tint);
+      border-color: rgba(255, 59, 48, 0.35);
+      color: #DC2626;
+      animation: gentlePulse 2.5s infinite;
+    }
+    .matrix-cell-btn.unrecorded {
+      background: var(--ios-subtle);
+      border-color: transparent;
+      color: var(--ios-muted);
+    }
+
+    @keyframes gentlePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+      50% { box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.15); }
+    }
+
+    .cell-temp-val {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+    .cell-status-sub {
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 2px;
+      letter-spacing: 0.2px;
+    }
+
+    /* 5. RECENT TRANSACTIONS STREAM */
+    .transactions-section {
+      padding: 0 20px;
+    }
+
+    .transactions-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tx-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 16px;
+      position: relative;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    .tx-item-row:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 16px;
+      right: 16px;
+      height: 1px;
+      background: rgba(0, 0, 0, 0.05);
+    }
+    .tx-item-row:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+    .tx-item-row:active {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    .tx-col-left {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .tx-loc-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ios-ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tx-meta-time {
+      font-size: 12px;
+      color: var(--ios-muted);
+    }
+
+    .tx-col-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .tx-temp-badge {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 2px;
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .tx-temp-badge.normal { color: var(--ios-green); }
+    .tx-temp-badge.over { color: var(--ios-red); }
+
+    .tx-photo-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 8px;
+      background: var(--ios-blue-tint);
+      color: var(--ios-blue);
+      font-size: 11px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    /* 6. APPLE HIG BOTTOM FLOATING DYNAMIC ISLAND NAVBAR */
+    .apple-bottom-island {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.18);
+      border-radius: 34px;
+      padding: 5px 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 400;
+      max-width: 90%;
+    }
+
+    .island-tab-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 24px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ios-muted);
+      transition: all 0.25s var(--apple-smooth);
+    }
+    .island-tab-item.active {
+      color: var(--ios-blue);
+      background: var(--ios-blue-tint);
+      font-weight: 700;
+    }
+    .island-tab-item:active {
+      transform: scale(0.96);
+    }
+
+    /* MODAL DETAIL TRANSAKSI & BUKTI FOTO WATERMARK */
+    .apple-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s var(--apple-smooth), visibility 0.3s;
+    }
+    .apple-modal-backdrop.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .apple-modal-box {
+      width: 100%;
+      max-width: 390px;
+      background: #FFFFFF;
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transform: scale(0.94);
+      transition: transform 0.35s var(--apple-spring);
+    }
+    .apple-modal-backdrop.active .apple-modal-box {
+      transform: scale(1);
+    }
+
+    .modal-detail-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ios-ink);
+    }
+    .modal-close-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(118, 118, 128, 0.12);
+      border: none;
+      color: var(--ios-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: var(--ios-subtle);
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 12px;
+    }
+    .meta-item-label {
+      color: var(--ios-muted);
+      display: block;
+      margin-bottom: 2px;
+      font-size: 11px;
+    }
+    .meta-item-val {
+      font-weight: 700;
+      color: var(--ios-ink);
+    }
+
+    .apple-btn-capsule {
+      height: 44px;
+      border-radius: 22px;
+      background: var(--ios-blue);
+      color: #FFFFFF;
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      width: 100%;
+    }
+    .apple-btn-capsule:hover {
+      background: var(--ios-blue-hover);
+    }
+    .apple-btn-capsule:active {
+      transform: scale(0.98);
+    }
+
+    /* FLOATING TOAST NOTIFICATION */
+    .apple-floating-toast {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(29, 29, 31, 0.94);
+      backdrop-filter: blur(20px);
+      color: #FFFFFF;
+      padding: 10px 18px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      z-index: 2100;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.35s var(--apple-spring);
+    }
+    .apple-floating-toast.active {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP TESTER & AUDIT BAR (STICKY FOR TESTING) -->
+  <div class="tester-top-bar">
+    <strong style="color: #F8FAFC;">Modul 05: Dashboard Pemantauan Operasional</strong>
+    <span style="color: #64748B;">|</span>
+
+    <span>Role:</span>
+    <div class="tester-role-group">
+      <button class="tester-toggle-btn active" id="btnRoleMember" onclick="setRole('MEMBER')">Member (Petugas)</button>
+      <button class="tester-toggle-btn" id="btnRoleAdmin" onclick="setRole('ADMIN')">Admin</button>
+    </div>
+
+    <span>Tanggal:</span>
+    <div class="tester-role-group">
+      <button class="tester-toggle-btn active" id="btnDateToday" onclick="setDateFilter('TODAY')">Hari Ini (19 Okt)</button>
+      <button class="tester-toggle-btn" id="btnDateYesterday" onclick="setDateFilter('YESTERDAY')">Kemarin (18 Okt)</button>
+    </div>
+
+    <button class="tester-action-pill" onclick="triggerOverlimitAlert()">
+      ⚠️ Simulasi Peringatan Suhu
+    </button>
+
+    <a href="../02-catat-suhu/index.html" class="version-pill">
+      ← Ke Catat Suhu (Modul 02)
+    </a>
+
+    <a href="../06-rekap-bulanan/index.html" class="version-pill" style="border-color:rgba(52, 199, 89, 0.4); color:#34D399; background:rgba(52, 199, 89, 0.15);">
+      Ke Rekap Bulanan (Modul 06) →
+    </a>
+  </div>
+
+  <!-- FLOATING TOAST NOTIFICATION -->
+  <div id="toastNotification" class="apple-floating-toast">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34C759" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="toastMsg">Dashboard dimuat</span>
+  </div>
+
+  <!-- DEVICE CONTAINER (IPHONE VIEWPORT) -->
+  <div class="device-shell" id="deviceShell">
+
+    <!-- 1. APPLE STORE HEADER -->
+    <header class="apple-header">
+      <div class="header-main-row">
+        <div class="header-title-block">
+          <h1 class="apple-large-title">Dashboard</h1>
+          <div class="header-sub-meta">
+            <span id="dateHeaderLabel">Senin, 19 Oktober 2026</span>
+            <span>•</span>
+            <span id="warehouseHeaderLabel">CK01 — Cikupa 1</span>
+          </div>
+        </div>
+
+        <!-- User Profile Avatar (Linked to Modul 04) -->
+        <a href="../04-pindah-warehouse/index.html" class="user-profile-pill" title="Buka Menu Profil & Pindah Warehouse (Modul 04)">
+          <div class="avatar-circle" id="avatarCircle">BS</div>
+          <div class="user-meta-group">
+            <span class="user-meta-name" id="userName">Budi Santoso</span>
+            <span class="user-meta-role" id="userRoleBadge">Member</span>
+          </div>
+        </a>
+      </div>
+    </header>
+
+    <!-- 2. WAREHOUSE SEGMENTED CONTROL (FOR ADMIN) & DATE JUMP -->
+    <div class="dashboard-context-bar">
+      <!-- Admin Warehouse Segmented Selector (FR-020) -->
+      <div class="apple-segmented-wh" id="whSegmentContainer" style="display: none;">
+        <button type="button" class="wh-segment-btn" id="whSegAll" onclick="selectWarehouseFilter('ALL')">
+          Semua Gudang
+        </button>
+        <button type="button" class="wh-segment-btn active" id="whSegCK01" onclick="selectWarehouseFilter('CK01')">
+          CK01 Cikupa 1
+        </button>
+        <button type="button" class="wh-segment-btn" id="whSegCK02" onclick="selectWarehouseFilter('CK02')">
+          CK02 Annex
+        </button>
+      </div>
+
+      <div class="date-filter-row">
+        <div class="date-badge-pill">
+          <svg class="sf-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span id="datePillText">19 Oktober 2026</span>
+        </div>
+        <button type="button" class="date-jump-btn" id="btnJumpToday" style="display:none;" onclick="setDateFilter('TODAY')">
+          Kembali ke Hari Ini ↗
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. BENTO KPI GRID (APPLE METRIC CARDS) -->
+    <div class="bento-kpi-grid">
+
+      <!-- Hero Card: Kelengkapan Slot Pemeriksaan -->
+      <div class="bento-card hero-card">
+        <div class="bento-header">
+          <span class="bento-label">Kelengkapan Slot Hari Ini</span>
+          <div class="bento-icon-squircle blue">
+            <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+        </div>
+        <div>
+          <div class="bento-value-huge num" id="kpiCompletionVal">
+            7 <span style="font-size:18px; font-weight:500; color:var(--ios-muted);">/ 12 Slot</span>
+          </div>
+          <div class="bento-progress-track">
+            <div class="bento-progress-fill" id="kpiProgressFill" style="width: 58%;"></div>
+          </div>
+        </div>
+        <div class="bento-subtext">
+          <span id="kpiUnfilledText">5 slot tersisa untuk shift sore</span> • <strong style="color:var(--ios-blue);" id="kpiPercentText">58% Selesai</strong>
+        </div>
+      </div>
+
+      <!-- Stat 2: Suhu Tertinggi -->
+      <div class="bento-card">
+        <div class="bento-header">
+          <span class="bento-label">Suhu Tertinggi</span>
+          <div class="bento-icon-squircle red">
+            <svg class="sf-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+          </div>
+        </div>
+        <div>
+          <div class="bento-value-huge red num" id="kpiMaxTempVal">35,5°C</div>
+        </div>
+        <div class="bento-subtext num" id="kpiMaxTempLoc">
+          A04 • Pukul 13.00
+        </div>
+      </div>
+
+      <!-- Stat 3: Suhu Terendah -->
+      <div class="bento-card">
+        <div class="bento-header">
+          <span class="bento-label">Suhu Terendah</span>
+          <div class="bento-icon-squircle indigo">
+            <svg class="sf-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+        </div>
+        <div>
+          <div class="bento-value-huge num" id="kpiMinTempVal">21,4°C</div>
+        </div>
+        <div class="bento-subtext num" id="kpiMinTempLoc">
+          Inbound • Pukul 09.00
+        </div>
+      </div>
+
+      <!-- Stat 4: Overlimit Warning -->
+      <div class="bento-card">
+        <div class="bento-header">
+          <span class="bento-label">Peringatan Suhu</span>
+          <div class="bento-icon-squircle orange">
+            <svg class="sf-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+        </div>
+        <div>
+          <div class="bento-value-huge red num" id="kpiOverCount">1 <span style="font-size:16px; font-weight:500;">Kejadian</span></div>
+        </div>
+        <div class="bento-subtext">
+          Batas aktif: <strong>≤ 25,0°C</strong>
+        </div>
+      </div>
+
+      <!-- Stat 5: WA Gateway Status -->
+      <div class="bento-card">
+        <div class="bento-header">
+          <span class="bento-label">WhatsApp Gateway</span>
+          <div class="bento-icon-squircle blue">
+            <svg class="sf-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          </div>
+        </div>
+        <div>
+          <div class="bento-value-huge green" style="font-size:24px;" id="kpiWaStatus">TERKIRIM</div>
+        </div>
+        <div class="bento-subtext">
+          Fonnte API • Siaga 24 Jam
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 4. MATRIKS PEMERIKSAAN SLOT (THE CORE OPERATIONAL GRID) -->
+    <section class="matrix-section">
+      <div class="section-title-row">
+        <h2>Matriks Pemeriksaan Slot</h2>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span id="matrixWarehouseBadge">Cikupa 1 (Batas ≤ 25,0°C)</span>
+          <a href="../06-rekap-bulanan/index.html" style="font-size:12px; font-weight:700; color:var(--ios-blue); text-decoration:none;" title="Lihat Rekapitulasi Suhu Bulanan (Modul 06)">
+            Rekap 31 Hari ↗
+          </a>
+        </div>
+      </div>
+
+      <div class="matrix-card">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th class="matrix-th-corner">Jadwal</th>
+              <th class="matrix-th-col">Inbound</th>
+              <th class="matrix-th-col">Storage A</th>
+              <th class="matrix-th-col">Storage B</th>
+              <th class="matrix-th-col">D05 Cold</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Row 1: Pagi 09.00 -->
+            <tr>
+              <td class="matrix-td-row-label num">09.00</td>
+              <td>
+                <button type="button" class="matrix-cell-btn normal" onclick="openDetailModal('Inbound', '09.00', '21,4', 'NORMAL', 'Budi Santoso', '09:12 WIB', 'SENT')">
+                  <span class="cell-temp-val num">21,4°</span>
+                  <span class="cell-status-sub">NORMAL</span>
+                </button>
+              </td>
+              <td>
+                <button type="button" class="matrix-cell-btn normal" onclick="openDetailModal('Storage A', '09.00', '23,4', 'NORMAL', 'Budi Santoso', '09:14 WIB', 'SENT')">
+                  <span class="cell-temp-val num">23,4°</span>
+                  <span class="cell-status-sub">NORMAL</span>
+                </button>
+              </td>
+              <td>
+                <button type="button" class="matrix-cell-btn normal" onclick="openDetailModal('Storage B', '09.00', '22,8', 'NORMAL', 'Budi Santoso', '09:18 WIB', 'SENT')">
+                  <span class="cell-temp-val num">22,8°</span>
+                  <span class="cell-status-sub">NORMAL</span>
+                </button>
+              </td>
+              <td>
+                <button type="button" class="matrix-cell-btn normal" onclick="openDetailModal('D05 Cold', '09.00', '24,1', 'NORMAL', 'Budi Santoso', '09:21 WIB', 'SENT')">
+                  <span class="cell-temp-val num">24,1°</span>
+                  <span class="cell-status-sub">NORMAL</span>
+                </button>
+              </td>
+            </tr>
+
+            <!-- Row 2: Siang 13.00 -->
+            <tr>
+              <td class="matrix-td-row-label num">13.00</td>
+              <td>
+                <button type="button" class="matrix-cell-btn normal" onclick="openDetailModal('Inbound', '13.00', '23,1', 'NORMAL', 'Budi Santoso', '13:08 WIB', 'SENT')">
+                  <span class="cell-temp-val num">23,1°</span>
+                  <span class="cell-status-sub">NORMAL</span>
+                </button>
+              </td>
+              <td>
+                <button type="button" class="matrix-cell-btn over" onclick="openDetailModal('Storage A', '13.00', '35,5', 'MELEBIHI_BATAS', 'Budi Santoso', '13:12 WIB', 'SENT')">
+                  <span class="cell-temp-val num">35,5° ▲</span>
+                  <span class="cell-status-sub">OVER</span>
+                </button>
+              </td>
+              <td>
+                <button type="button" class="matrix-cell-btn normal" onclick="openDetailModal('Storage B', '13.00', '24,8', 'NORMAL', 'Budi Santoso', '13:16 WIB', 'SENT')">
+                  <span class="cell-temp-val num">24,8°</span>
+                  <span class="cell-status-sub">NORMAL</span>
+                </button>
+              </td>
+              <td>
+                <button type="button" class="matrix-cell-btn unrecorded" onclick="alert('Slot D05 Cold pukul 13.00 belum diinput suhunya (BR-09: Data kosong bukan nol). Silakan input di Form Catat Suhu.')">
+                  <span class="cell-temp-val">–</span>
+                  <span class="cell-status-sub">KOSONG</span>
+                </button>
+              </td>
+            </tr>
+
+            <!-- Row 3: Sore 17.00 -->
+            <tr>
+              <td class="matrix-td-row-label num">17.00</td>
+              <td>
+                <button type="button" class="matrix-cell-btn unrecorded" onclick="alert('Slot Inbound pukul 17.00 belum diinput suhunya.')">
+                  <span class="cell-temp-val">–</span>
+                  <span class="cell-status-sub">KOSONG</span>
+                </button>
+              </td>
+              <td>
+                <button type="button" class="matrix-cell-btn unrecorded" onclick="alert('Slot Storage A pukul 17.00 belum diinput suhunya.')">
+                  <span class="cell-temp-val">–</span>
+                  <span class="cell-status-sub">KOSONG</span>
+                </button>
+              </td>
+              <td>
+                <button type="button" class="matrix-cell-btn unrecorded" onclick="alert('Slot Storage B pukul 17.00 belum diinput suhunya.')">
+                  <span class="cell-temp-val">–</span>
+                  <span class="cell-status-sub">KOSONG</span>
+                </button>
+              </td>
+              <td>
+                <button type="button" class="matrix-cell-btn unrecorded" onclick="alert('Slot D05 Cold pukul 17.00 belum diinput suhunya.')">
+                  <span class="cell-temp-val">–</span>
+                  <span class="cell-status-sub">KOSONG</span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5. DAFTAR TRANSAKSI TANGGAL INI -->
+    <section class="transactions-section">
+      <div class="section-title-row">
+        <h2>Transaksi Tersimpan Hari Ini</h2>
+        <span class="num">7 Transaksi</span>
+      </div>
+
+      <div class="transactions-card">
+
+        <!-- Tx 1: Overlimit Alert -->
+        <div class="tx-item-row" onclick="openDetailModal('Storage A', '13.00', '35,5', 'MELEBIHI_BATAS', 'Budi Santoso', '13:12 WIB', 'SENT')">
+          <div class="tx-col-left">
+            <div class="tx-loc-name">Storage A • Pukul 13.00</div>
+            <div class="tx-meta-time">Petugas: Budi Santoso • Waktu: 13:12 WIB</div>
+          </div>
+          <div class="tx-col-right">
+            <span class="tx-temp-badge over num">35,5°C</span>
+            <span class="tx-photo-chip">Lihat ↗</span>
+          </div>
+        </div>
+
+        <!-- Tx 2: Normal -->
+        <div class="tx-item-row" onclick="openDetailModal('Storage B', '13.00', '24,8', 'NORMAL', 'Budi Santoso', '13:16 WIB', 'SENT')">
+          <div class="tx-col-left">
+            <div class="tx-loc-name">Storage B • Pukul 13.00</div>
+            <div class="tx-meta-time">Petugas: Budi Santoso • Waktu: 13:16 WIB</div>
+          </div>
+          <div class="tx-col-right">
+            <span class="tx-temp-badge normal num">24,8°C</span>
+            <span class="tx-photo-chip">Lihat ↗</span>
+          </div>
+        </div>
+
+        <!-- Tx 3: Normal -->
+        <div class="tx-item-row" onclick="openDetailModal('Inbound', '13.00', '23,1', 'NORMAL', 'Budi Santoso', '13:08 WIB', 'SENT')">
+          <div class="tx-col-left">
+            <div class="tx-loc-name">Inbound • Pukul 13.00</div>
+            <div class="tx-meta-time">Petugas: Budi Santoso • Waktu: 13:08 WIB</div>
+          </div>
+          <div class="tx-col-right">
+            <span class="tx-temp-badge normal num">23,1°C</span>
+            <span class="tx-photo-chip">Lihat ↗</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 6. APPLE HIG BOTTOM FLOATING DYNAMIC ISLAND NAVBAR -->
+    <nav class="apple-bottom-island">
+      <a href="../02-catat-suhu/index.html" class="island-tab-item">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+        <span>Catat Suhu</span>
+      </a>
+
+      <a href="./index.html" class="island-tab-item active">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+
+      <a href="../04-pindah-warehouse/index.html" class="island-tab-item">
+        <svg class="sf-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+        <span>Profil</span>
+      </a>
+    </nav>
+
+  </div>
+
+  <!-- MODAL DETAIL TRANSAKSI & BUKTI FOTO (APPLE HIG LIGHTBOX) -->
+  <div class="apple-modal-backdrop" id="modalDetailBackdrop" onclick="handleDetailBackdropClick(event)">
+    <div class="apple-modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 class="modal-detail-title" id="modalLocTitle">Detail Pemeriksaan</h3>
+        <button type="button" class="modal-close-btn" onclick="closeDetailModal()">
+          <svg class="sf-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- Temperature Hero Display -->
+      <div style="text-align:center; padding:10px 0;">
+        <div style="font-size:46px; font-weight:800; line-height:1; letter-spacing:-1px;" id="modalTempVal">23,4°C</div>
+        <div style="margin-top:6px;" id="modalStatusBadge">
+          <span style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:var(--ios-green-tint); color:var(--ios-green);">
+            ✓ NORMAL (Batas ≤ 25,0°C)
+          </span>
+        </div>
+      </div>
+
+      <!-- Metadata Grid -->
+      <div class="modal-meta-grid">
+        <div>
+          <span class="meta-item-label">Jadwal Shift:</span>
+          <span class="meta-item-val" id="modalShiftVal">Pukul 09.00 WIB</span>
+        </div>
+        <div>
+          <span class="meta-item-label">Waktu Server:</span>
+          <span class="meta-item-val num" id="modalTimeVal">09:14 WIB</span>
+        </div>
+        <div>
+          <span class="meta-item-label">Petugas Lapangan:</span>
+          <span class="meta-item-val" id="modalPetugasVal">Budi Santoso</span>
+        </div>
+        <div>
+          <span class="meta-item-label">Status WhatsApp:</span>
+          <span class="meta-item-val" id="modalWaVal" style="color:var(--ios-green);">✓ Terkirim</span>
+        </div>
+      </div>
+
+      <!-- Watermark Simulation Banner -->
+      <div style="background:#1E293B; border-radius:14px; padding:12px; color:#FFFFFF; font-size:11px; line-height:1.4;">
+        <div style="color:#38BDF8; font-weight:700; margin-bottom:2px;">Bukti Foto Termometer Digital (Watermark GPS)</div>
+        <div style="color:#CBD5E1;">Foto terverifikasi di Google Drive: <code>2026-10-19_StorageA_0900_Budi.jpg</code></div>
+        <div style="color:#94A3B8; font-size:10px; margin-top:2px;">GPS: -6.1751, 106.8650 • Akurasi: 8m (Asia/Jakarta)</div>
+      </div>
+
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="apple-btn-capsule" onclick="closeDetailModal()">
+          Tutup Detail
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT: LOGIC & INTERACTION -->
+  <script>
+    let currentRole = 'MEMBER';
+    let currentDateFilter = 'TODAY';
+    let currentWhFilter = 'CK01';
+
+    function setRole(role) {
+      currentRole = role;
+      document.getElementById('btnRoleMember').classList.toggle('active', role === 'MEMBER');
+      document.getElementById('btnRoleAdmin').classList.toggle('active', role === 'ADMIN');
+
+      const avatar = document.getElementById('avatarCircle');
+      const name = document.getElementById('userName');
+      const roleBadge = document.getElementById('userRoleBadge');
+      const whSeg = document.getElementById('whSegmentContainer');
+
+      const navAdmin = document.getElementById('navAdminTab');
+
+      if (role === 'ADMIN') {
+        avatar.textContent = 'AD';
+        avatar.style.background = 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)';
+        name.textContent = 'Admin Suhu';
+        roleBadge.textContent = 'Administrator';
+        whSeg.style.display = 'flex'; // Admin can see consolidated & filter
+        if (navAdmin) navAdmin.style.display = 'inline-flex';
+        showToast('Mode Administrator: Akses konsolidasi & filter warehouse aktif');
+      } else {
+        avatar.textContent = 'BS';
+        avatar.style.background = 'linear-gradient(135deg, #0284C7 0%, #0071E3 100%)';
+        name.textContent = 'Budi Santoso';
+        roleBadge.textContent = 'Member';
+        whSeg.style.display = 'none'; // Member views their active warehouse
+        if (navAdmin) navAdmin.style.display = 'none';
+        showToast('Mode Member: Menampilkan gudang aktif saat ini (CK01)');
+      }
+    }
+
+    function setDateFilter(filter) {
+      currentDateFilter = filter;
+      document.getElementById('btnDateToday').classList.toggle('active', filter === 'TODAY');
+      document.getElementById('btnDateYesterday').classList.toggle('active', filter === 'YESTERDAY');
+
+      const pill = document.getElementById('datePillText');
+      const headerLabel = document.getElementById('dateHeaderLabel');
+      const btnJump = document.getElementById('btnJumpToday');
+
+      if (filter === 'YESTERDAY') {
+        pill.textContent = 'Minggu, 18 Oktober 2026 (Kemarin)';
+        headerLabel.textContent = 'Minggu, 18 Oktober 2026';
+        btnJump.style.display = 'inline-block';
+        showToast('Memuat data historis: 18 Oktober 2026');
+      } else {
+        pill.textContent = 'Senin, 19 Oktober 2026 (Hari Ini)';
+        headerLabel.textContent = 'Senin, 19 Oktober 2026';
+        btnJump.style.display = 'none';
+        showToast('Memuat data operasional hari ini');
+      }
+    }
+
+    function selectWarehouseFilter(wh) {
+      currentWhFilter = wh;
+      document.getElementById('whSegAll').classList.toggle('active', wh === 'ALL');
+      document.getElementById('whSegCK01').classList.toggle('active', wh === 'CK01');
+      document.getElementById('whSegCK02').classList.toggle('active', wh === 'CK02');
+
+      const headerLabel = document.getElementById('warehouseHeaderLabel');
+      const matrixBadge = document.getElementById('matrixWarehouseBadge');
+
+      if (wh === 'ALL') {
+        headerLabel.textContent = 'Gabungan Seluruh Gudang';
+        matrixBadge.textContent = 'Konsolidasi Gudang Aktif';
+        showToast('Menampilkan Ringkasan Konsolidasi Multi-Warehouse (FR-020)');
+      } else if (wh === 'CK02') {
+        headerLabel.textContent = 'CK02 — Cikupa Annex';
+        matrixBadge.textContent = 'Cikupa Annex (Batas ≤ 25,0°C)';
+        showToast('Menampilkan data Cikupa Annex (CK02)');
+      } else {
+        headerLabel.textContent = 'CK01 — Cikupa 1';
+        matrixBadge.textContent = 'Cikupa 1 (Batas ≤ 25,0°C)';
+        showToast('Menampilkan data Cikupa 1 (CK01)');
+      }
+    }
+
+    function triggerOverlimitAlert() {
+      openDetailModal('Storage A', '13.00', '35,5', 'MELEBIHI_BATAS', 'Budi Santoso', '13:12 WIB', 'SENT');
+    }
+
+    function openDetailModal(locName, shift, temp, status, petugas, timeStr, waStatus) {
+      document.getElementById('modalLocTitle').textContent = `Titik Pantau: ${locName}`;
+      document.getElementById('modalTempVal').textContent = `${temp}°C`;
+      document.getElementById('modalShiftVal').textContent = `Pukul ${shift} WIB`;
+      document.getElementById('modalTimeVal').textContent = timeStr;
+      document.getElementById('modalPetugasVal').textContent = petugas;
+
+      const badge = document.getElementById('modalStatusBadge');
+      if (status === 'MELEBIHI_BATAS') {
+        document.getElementById('modalTempVal').style.color = 'var(--ios-red)';
+        badge.innerHTML = `
+          <span style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:var(--ios-red-tint); color:var(--ios-red);">
+            ⚠️ MELEBIHI BATAS (> 25,0°C)
+          </span>
+        `;
+      } else {
+        document.getElementById('modalTempVal').style.color = 'var(--ios-ink)';
+        badge.innerHTML = `
+          <span style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:var(--ios-green-tint); color:var(--ios-green);">
+            ✓ NORMAL (Batas ≤ 25,0°C)
+          </span>
+        `;
+      }
+
+      document.getElementById('modalDetailBackdrop').classList.add('active');
+    }
+
+    function closeDetailModal() {
+      document.getElementById('modalDetailBackdrop').classList.remove('active');
+    }
+
+    function handleDetailBackdropClick(e) {
+      if (e.target.id === 'modalDetailBackdrop') {
+        closeDetailModal();
+      }
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.classList.add('active');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('active');
+      }, 2600);
+    }
+  </script>
+</body>
+</html>
