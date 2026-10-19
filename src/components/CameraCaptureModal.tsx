@@ -86,35 +86,14 @@ export default function CameraCaptureModal({
           gpsCoordsRef.current = coordsStr;
           setGpsStatus(`GPS: ${coordsStr}`);
 
-          // Fetch reverse geocoded address client-side
+          // Fetch reverse geocoded address via internal API route (supports Google Maps Geocoding & OpenStreetMap)
           try {
-            const res = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`
-            );
+            const res = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
             if (res.ok) {
               const data = await res.json();
-              const road = data.localityInfo?.informative?.find(
-                (i: any) => i.description === 'road' || i.name?.toLowerCase().includes('jl')
-              )?.name;
-              const subDistrict = data.localityInfo?.administrative?.find((a: any) => a.order === 4)?.name;
-              const district =
-                data.localityInfo?.administrative?.find((a: any) => a.order === 3)?.name ||
-                data.principalSubdivisionDistrict ||
-                data.city;
-              const province = data.principalSubdivision;
-              const postal = data.postcode;
-
-              const addrParts = [
-                road,
-                data.locality || subDistrict,
-                district,
-                province ? (postal ? `${province} ${postal}` : province) : postal
-              ].filter(Boolean);
-
-              if (addrParts.length > 0) {
-                const fullAddr = addrParts.join(', ');
-                setGpsAddress(fullAddr);
-                gpsAddressRef.current = fullAddr;
+              if (data.success && data.address) {
+                setGpsAddress(data.address);
+                gpsAddressRef.current = data.address;
               }
             }
           } catch {
