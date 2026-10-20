@@ -114,6 +114,7 @@ export type AuditActionCategory =
   | 'AUTH_LOGIN'
   | 'TX_CREATE'
   | 'TX_UPDATE'
+  | 'TX_DELETE'
   | 'DATE_UNLOCK'
   | 'USER_MGMT'
   | 'MASTER_MGMT'

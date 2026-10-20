@@ -273,3 +273,72 @@ export async function clearSheetRange(range: string) {
   return await res.json();
 }
 
+
+
+/**
+ * Deletes a row permanently from a sheet by title and zero-based row index (FR-012)
+ */
+export async function deleteSheetRow(sheetName: string, zeroBasedRowIndex: number) {
+  if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not configured');
+  clearSheetCache();
+  const token = await getGoogleAccessToken();
+
+  // 1. Fetch metadata to resolve numeric sheetId
+  const metaRes = await fetchSheetsWithRetry(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets.properties`,
+    {
+      headers: { Authorization: `Bearer ${token}` }
+    }
+  );
+
+  if (!metaRes.ok) {
+    const errorText = await metaRes.text();
+    throw new Error(`Failed to fetch spreadsheet metadata: ${errorText}`);
+  }
+
+  const metaData = await metaRes.json();
+  const targetSheet = (metaData.sheets || []).find(
+    (s: any) => s.properties?.title?.toLowerCase() === sheetName.toLowerCase()
+  );
+
+  if (!targetSheet || targetSheet.properties?.sheetId === undefined) {
+    throw new Error(`Sheet "${sheetName}" not found in spreadsheet`);
+  }
+
+  const numericSheetId = targetSheet.properties.sheetId;
+
+  // 2. Perform deleteDimension batchUpdate
+  const body = {
+    requests: [
+      {
+        deleteDimension: {
+          range: {
+            sheetId: numericSheetId,
+            dimension: 'ROWS',
+            startIndex: zeroBasedRowIndex,
+            endIndex: zeroBasedRowIndex + 1
+          }
+        }
+      }
+    ]
+  };
+
+  const res = await fetchSheetsWithRetry(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }
+  );
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Failed to delete row ${zeroBasedRowIndex} in sheet ${sheetName}: ${errorText}`);
+  }
+
+  return await res.json();
+}

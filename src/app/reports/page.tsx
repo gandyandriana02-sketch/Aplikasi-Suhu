@@ -121,6 +121,21 @@ export default function MonthlyReportPage() {
     dateStr: string;
   } | null>(null);
 
+  // Action states for In-Modal Icon CRUD & WA retry (FR-012, FR-014)
+  const [isEditing, setIsEditing] = useState(false);
+  const [editSuhu, setEditSuhu] = useState('');
+  const [editReason, setEditReason] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const [retryingWa, setRetryingWa] = useState(false);
+  const [actionToast, setActionToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
   // Visible export notifications (PDF, Excel, CSV)
   const [exportNotification, setExportNotification] = useState<{
     type: 'pdf' | 'excel' | 'csv';
@@ -422,11 +437,258 @@ export default function MonthlyReportPage() {
     };
   }, [data]);
 
+  // Handle Retry WhatsApp Notification (FR-014)
+  async function handleRetryWa() {
+    if (!selectedCell?.cell?.transaction_id || retryingWa) return;
+    setRetryingWa(true);
+    try {
+      const res = await fetch('/api/notifications/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_id: selectedCell.cell.transaction_id })
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        alert(d.error || 'Gagal mengirim ulang notifikasi WhatsApp.');
+        return;
+      }
+      const newStatus = d.wa_notif_status || 'SENT';
+      setSelectedCell((prev) =>
+        prev
+          ? {
+              ...prev,
+              cell: { ...prev.cell, wa_notif_status: newStatus }
+            }
+          : null
+      );
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          matrix: prev.matrix.map((prd) => ({
+            ...prd,
+            locationRows: prd.locationRows.map((loc) => ({
+              ...loc,
+              days: loc.days.map((c) =>
+                c.transaction_id === selectedCell.cell.transaction_id
+                  ? { ...c, wa_notif_status: newStatus }
+                  : c
+              )
+            }))
+          }))
+        };
+      });
+      setActionToast({ message: 'Notifikasi WhatsApp berhasil dikirim ulang ke grup!', type: 'success' });
+      setTimeout(() => setActionToast(null), 5000);
+    } catch {
+      alert('Terjadi kesalahan jaringan saat mengirim ulang WhatsApp.');
+    } finally {
+      setRetryingWa(false);
+    }
+  }
+
+  // Handle Koreksi Suhu (Update) (FR-012)
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedCell?.cell?.transaction_id) return;
+    const numSuhu = parseFloat(editSuhu.replace(',', '.'));
+    if (isNaN(numSuhu) || numSuhu <= 0 || numSuhu > 60) {
+      setEditError('Masukkan nilai suhu yang valid (misal: 25.5)');
+      return;
+    }
+    if (!editReason.trim()) {
+      setEditError('Alasan koreksi suhu wajib diisi.');
+      return;
+    }
+
+    setEditLoading(true);
+    setEditError('');
+
+    try {
+      const res = await fetch(`/api/transactions/${selectedCell.cell.transaction_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suhu: numSuhu,
+          reason: editReason.trim()
+        })
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setEditError(d.error || 'Gagal memperbarui transaksi.');
+        return;
+      }
+
+      const newStatus = d.transaction.status_suhu;
+      setSelectedCell((prev) =>
+        prev
+          ? {
+              ...prev,
+              cell: {
+                ...prev.cell,
+                suhu: numSuhu,
+                status_suhu: newStatus
+              }
+            }
+          : null
+      );
+
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          matrix: prev.matrix.map((prd) => ({
+            ...prd,
+            locationRows: prd.locationRows.map((loc) => ({
+              ...loc,
+              days: loc.days.map((c) =>
+                c.transaction_id === selectedCell.cell.transaction_id
+                  ? { ...c, suhu: numSuhu, status_suhu: newStatus }
+                  : c
+              )
+            }))
+          }))
+        };
+      });
+
+      setIsEditing(false);
+      setActionToast({ message: `Suhu berhasil dikoreksi menjadi ${numSuhu}°C`, type: 'success' });
+      setTimeout(() => setActionToast(null), 5000);
+    } catch {
+      setEditError('Terjadi kesalahan jaringan.');
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  // Handle Hapus Transaksi (Delete) (FR-012)
+  async function handleDeleteSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedCell?.cell?.transaction_id) return;
+
+    setDeleteLoading(true);
+    setDeleteError('');
+
+    try {
+      const txId = selectedCell.cell.transaction_id;
+      const res = await fetch(`/api/transactions/${txId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: deleteReason.trim() || 'Dihapus oleh Administrator dari Rekap Bulanan'
+        })
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setDeleteError(d.error || 'Gagal menghapus transaksi.');
+        return;
+      }
+
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          matrix: prev.matrix.map((prd) => ({
+            ...prd,
+            locationRows: prd.locationRows.map((loc) => ({
+              ...loc,
+              days: loc.days.map((c) =>
+                c.transaction_id === txId
+                  ? {
+                      day: c.day,
+                      has_data: false,
+                      suhu: undefined,
+                      status_suhu: undefined,
+                      transaction_id: undefined,
+                      drive_file_id: undefined,
+                      drive_view_url: undefined,
+                      petugas_name: undefined,
+                      server_received_at: undefined,
+                      wa_notif_status: undefined
+                    }
+                  : c
+              )
+            }))
+          }))
+        };
+      });
+
+      setSelectedCell(null);
+      setIsDeleting(false);
+      setActionToast({ message: 'Transaksi berhasil dihapus. Sel kembali kosong (–).', type: 'success' });
+      setTimeout(() => setActionToast(null), 5000);
+    } catch {
+      setDeleteError('Terjadi kesalahan jaringan.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   return (
     <AppShell user={user}>
       <div className="rekap-viewport-container mode-desktop apple-view-enter">
         <div className="rekap-main-paper">
           
+          {/* Action Success/Error Toast (Admin Koreksi / Hapus / WA Retry) */}
+          {actionToast && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="no-print"
+              style={{
+                marginBottom: '16px',
+                padding: '12px 18px',
+                borderRadius: '16px',
+                backgroundColor: actionToast.type === 'error' ? '#FEE2E2' : '#F0FDF4',
+                border: `1px solid ${actionToast.type === 'error' ? '#FCA5A5' : '#86EFAC'}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.05)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: actionToast.type === 'error' ? '#EF4444' : '#16A34A',
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    fontWeight: 700
+                  }}
+                >
+                  {actionToast.type === 'error' ? '!' : '✓'}
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: actionToast.type === 'error' ? '#991B1B' : '#14532D' }}>
+                  {actionToast.message}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActionToast(null)}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: actionToast.type === 'error' ? '#991B1B' : '#14532D',
+                  fontSize: '20px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '2px 8px',
+                  lineHeight: 1
+                }}
+                aria-label="Tutup notifikasi"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           {/* Visible Export Status Toast / Alert Banner (A4 Print Hidden) */}
           {exportNotification && (
             <div
@@ -657,8 +919,16 @@ export default function MonthlyReportPage() {
                 <span>Sabtu/Minggu</span>
               </div>
               <div className="legend-chip">
-                <span className="legend-indicator overlimit"></span>
-                <span>Melebihi Batas (▲)</span>
+                <span style={{ fontWeight: 800, color: 'var(--over)', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                  30 ▲
+                </span>
+                <span>Melebihi Batas</span>
+              </div>
+              <div className="legend-chip">
+                <span className="legend-indicator wa-failed" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 900, color: '#DC2626' }}>
+                  !
+                </span>
+                <span>WA Gagal</span>
               </div>
               <div className="legend-chip">
                 <span className="legend-indicator normal"></span>
@@ -817,6 +1087,7 @@ export default function MonthlyReportPage() {
                             {/* 1..daysInMonth cells */}
                             {locRow.days.map((dayCell) => {
                               const isOver = dayCell.status_suhu === 'MELEBIHI_BATAS';
+                              const isWaFailed = isOver && dayCell.wa_notif_status === 'FAILED';
                               const isWeekend = data.weekendDays.includes(dayCell.day);
 
                               if (!dayCell.has_data) {
@@ -842,19 +1113,50 @@ export default function MonthlyReportPage() {
                                 >
                                   <button
                                     type="button"
-                                    onClick={() =>
+                                    onClick={() => {
+                                      setIsEditing(false);
+                                      setIsDeleting(false);
+                                      setEditError('');
+                                      setDeleteError('');
+                                      setEditSuhu(dayCell.suhu?.toString() || '');
+                                      setEditReason('');
+                                      setDeleteReason('');
                                       setSelectedCell({
                                         locationName: locRow.location_name,
                                         periodLabel: prdGroup.period_label,
                                         cell: dayCell,
                                         dateStr
-                                      })
-                                    }
-                                    className={`cell-temp-btn ${isOver ? 'overlimit' : ''}`}
-                                    title={`Klik untuk detail: ${dayCell.suhu}°C (${locRow.location_name})`}
+                                      });
+                                    }}
+                                    className={`cell-temp-btn ${isOver ? 'overlimit' : ''} ${isWaFailed ? 'wa-failed' : ''}`}
+                                    title={`Klik untuk detail: ${dayCell.suhu}°C (${locRow.location_name})${isWaFailed ? ' • NOTIFIKASI WA GAGAL' : ''}`}
                                   >
                                     <span>{dayCell.suhu?.toString().replace('.', ',')}</span>
                                     {isOver && <span className="tri">▲</span>}
+                                    {isWaFailed && (
+                                      <span
+                                        style={{
+                                          position: 'absolute',
+                                          top: '-2px',
+                                          right: '-2px',
+                                          background: '#DC2626',
+                                          color: '#FFFFFF',
+                                          borderRadius: '50%',
+                                          width: '10px',
+                                          height: '10px',
+                                          fontSize: '7px',
+                                          fontWeight: 900,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                                          lineHeight: 1
+                                        }}
+                                        title="Notifikasi WhatsApp Gagal Terkirim"
+                                      >
+                                        !
+                                      </span>
+                                    )}
                                   </button>
                                 </td>
                               );
@@ -955,7 +1257,7 @@ export default function MonthlyReportPage() {
             className="apple-modal-box"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
+            {/* Modal Header with Icon Actions (WhatsApp, Edit ✏️, Delete 🗑️) */}
             <div className="modal-head-row">
               <div>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
@@ -969,19 +1271,201 @@ export default function MonthlyReportPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedCell(null)}
-                className="modal-close-btn"
-                title="Tutup dialog"
-                aria-label="Tutup dialog"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
+              <div className="modal-actions-header-group">
+                {/* WhatsApp Retry Icon (Visible if WA status is FAILED) */}
+                {selectedCell.cell.wa_notif_status === 'FAILED' && (
+                  <button
+                    type="button"
+                    onClick={handleRetryWa}
+                    disabled={retryingWa}
+                    className="modal-icon-btn whatsapp failed"
+                    title={retryingWa ? 'Sedang mengirim ulang WhatsApp...' : 'Kirim Ulang Notifikasi WhatsApp'}
+                    aria-label="Kirim Ulang Notifikasi WhatsApp"
+                  >
+                    {retryingWa ? (
+                      <span style={{ fontSize: '12px' }}>⋯</span>
+                    ) : (
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true">
+                        <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.586 1.838.882 2.792.883h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.769-5.769-5.769zm3.364 8.163c-.14.394-.79.743-1.096.786-.307.043-.683.064-2.203-.564-1.815-.75-2.986-2.587-3.076-2.707-.09-.12-.734-.976-.734-1.862 0-.886.463-1.32.628-1.499.165-.179.36-.224.48-.224.12 0 .24.001.345.006.11.005.258-.042.404.307.15.36.51 1.246.555 1.336.045.09.075.195.015.315-.06.12-.09.195-.18.3-.09.105-.19.234-.27.315-.09.09-.185.187-.08.367.105.18.468.772 1.004 1.25.688.613 1.27.804 1.45.894.18.09.285.075.39-.045.105-.12.45-.525.57-.705.12-.18.24-.15.405-.09.165.06 1.05.495 1.23.585.18.09.3.135.345.21.045.075.045.435-.095.829zM12 2C6.477 2 2 6.477 2 12c0 1.891.528 3.66 1.447 5.174L2 22l4.982-1.411A9.957 9.957 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/>
+                      </svg>
+                    )}
+                  </button>
+                )}
+
+                {/* Edit Icon ✏️ (Admin only) */}
+                {user?.role === 'ADMIN' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(!isEditing);
+                      setIsDeleting(false);
+                      setEditSuhu(selectedCell.cell.suhu?.toString() || '');
+                      setEditReason('');
+                      setEditError('');
+                    }}
+                    className={`modal-icon-btn edit ${isEditing ? 'active' : ''}`}
+                    title="Koreksi / Edit Suhu (Admin)"
+                    aria-label="Koreksi / Edit Suhu"
+                  >
+                    <span role="img" aria-label="Edit">✏️</span>
+                  </button>
+                )}
+
+                {/* Delete Icon 🗑️ (Admin only) */}
+                {user?.role === 'ADMIN' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDeleting(!isDeleting);
+                      setIsEditing(false);
+                      setDeleteReason('');
+                      setDeleteError('');
+                    }}
+                    className={`modal-icon-btn delete ${isDeleting ? 'active' : ''}`}
+                    title="Hapus Transaksi (Admin)"
+                    aria-label="Hapus Transaksi"
+                  >
+                    <span role="img" aria-label="Hapus">🗑️</span>
+                  </button>
+                )}
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCell(null)}
+                  className="modal-close-btn"
+                  title="Tutup dialog"
+                  aria-label="Tutup dialog"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
             </div>
+
+            {/* Inline Edit Form (Koreksi Suhu - Admin) */}
+            {isEditing && (
+              <div style={{ background: '#F8FAFC', border: '1px solid #BFDBFE', borderRadius: '16px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>✏️</span> Koreksi Suhu Transaksi
+                  </span>
+                  <button type="button" onClick={() => setIsEditing(false)} style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#64748B' }}>×</button>
+                </div>
+                <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                      Nilai Suhu Baru (°C)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={editSuhu}
+                      onChange={(e) => setEditSuhu(e.target.value)}
+                      placeholder="misal: 25.5"
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', fontWeight: 600, background: '#FFFFFF' }}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                      Alasan Koreksi (Wajib untuk Audit Log)
+                    </label>
+                    <input
+                      type="text"
+                      value={editReason}
+                      onChange={(e) => setEditReason(e.target.value)}
+                      placeholder="Contoh: Salah baca termometer / kalibrasi"
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', background: '#FFFFFF' }}
+                      required
+                    />
+                  </div>
+                  {editError && (
+                    <div style={{ fontSize: '11.5px', color: '#DC2626', fontWeight: 600 }}>{editError}</div>
+                  )}
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      className="btn-capsule-action"
+                      style={{ padding: '6px 14px', fontSize: '12px' }}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={editLoading}
+                      className="btn-capsule-action primary"
+                      style={{ padding: '6px 16px', fontSize: '12px' }}
+                    >
+                      {editLoading ? 'Menyimpan...' : 'Simpan Koreksi'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Inline Delete Form (Hapus Transaksi - Admin) */}
+            {isDeleting && (
+              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '16px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#DC2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>🗑️</span> Hapus Transaksi Suhu Ini?
+                  </span>
+                  <button type="button" onClick={() => setIsDeleting(false)} style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#64748B' }}>×</button>
+                </div>
+                <p style={{ fontSize: '11.5px', color: '#991B1B', margin: 0, lineHeight: 1.4 }}>
+                  Data akan dihapus permanen dari Google Sheets dan berkas foto bukti dihapus dari Google Drive. Sel akan kembali berstatus kosong (–).
+                </p>
+                <form onSubmit={handleDeleteSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#7F1D1D', marginBottom: '4px' }}>
+                      Alasan Penghapusan (Wajib untuk Audit Log)
+                    </label>
+                    <input
+                      type="text"
+                      value={deleteReason}
+                      onChange={(e) => setDeleteReason(e.target.value)}
+                      placeholder="Contoh: Input ganda / salah pilih titik lokasi"
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #FCA5A5', fontSize: '12px', background: '#FFFFFF' }}
+                      required
+                    />
+                  </div>
+                  {deleteError && (
+                    <div style={{ fontSize: '11.5px', color: '#DC2626', fontWeight: 600 }}>{deleteError}</div>
+                  )}
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsDeleting(false)}
+                      className="btn-capsule-action"
+                      style={{ padding: '6px 14px', fontSize: '12px' }}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={deleteLoading}
+                      style={{
+                        backgroundColor: '#DC2626',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '20px',
+                        padding: '6px 16px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        opacity: deleteLoading ? 0.7 : 1
+                      }}
+                    >
+                      {deleteLoading ? 'Menghapus...' : 'Ya, Hapus Transaksi'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
 
             {/* Photo Preview / Watermark Box */}
             <div className="modal-photo-canvas-preview">
@@ -1054,24 +1538,66 @@ export default function MonthlyReportPage() {
                 </span>
               </div>
 
-              <div className="modal-meta-card full" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="modal-meta-card full" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                 <div>
                   <span className="modal-meta-card-label">Notifikasi WhatsApp</span>
-                  <span className="modal-meta-card-val" style={{ fontSize: '12px' }}>
-                    {selectedCell.cell.wa_notif_status || 'NOT_REQUIRED'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                    {selectedCell.cell.wa_notif_status === 'FAILED' ? (
+                      <span style={{ background: '#FEE2E2', color: '#DC2626', border: '1px solid #FCA5A5', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span>!</span> GAGAL TERKIRIM
+                      </span>
+                    ) : selectedCell.cell.wa_notif_status === 'SENT' ? (
+                      <span style={{ background: '#DCFCE7', color: '#16A34A', border: '1px solid #86EFAC', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span>✓</span> TERKIRIM KE GRUP
+                      </span>
+                    ) : (
+                      <span className="modal-meta-card-val" style={{ fontSize: '12px' }}>
+                        {selectedCell.cell.wa_notif_status || 'NOT_REQUIRED'}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {selectedCell.cell.drive_file_id && (
-                  <a
-                    href={`/photo/${selectedCell.cell.drive_file_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-capsule-action primary"
-                    style={{ padding: '6px 14px', fontSize: '12px' }}
-                  >
-                    Buka Foto Asli ↗
-                  </a>
-                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {selectedCell.cell.wa_notif_status === 'FAILED' && (
+                    <button
+                      type="button"
+                      onClick={handleRetryWa}
+                      disabled={retryingWa}
+                      className="btn-capsule-action"
+                      style={{
+                        background: '#25D366',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        padding: '6px 12px',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 2px 6px rgba(37, 211, 102, 0.3)'
+                      }}
+                      title="Kirim Ulang Notifikasi WhatsApp Sekarang"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.668-.699c.969.586 1.838.882 2.792.883h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.769-5.769-5.769zm3.364 8.163c-.14.394-.79.743-1.096.786-.307.043-.683.064-2.203-.564-1.815-.75-2.986-2.587-3.076-2.707-.09-.12-.734-.976-.734-1.862 0-.886.463-1.32.628-1.499.165-.179.36-.224.48-.224.12 0 .24.001.345.006.11.005.258-.042.404.307.15.36.51 1.246.555 1.336.045.09.075.195.015.315-.06.12-.09.195-.18.3-.09.105-.19.234-.27.315-.09.09-.185.187-.08.367.105.18.468.772 1.004 1.25.688.613 1.27.804 1.45.894.18.09.285.075.39-.045.105-.12.45-.525.57-.705.12-.18.24-.15.405-.09.165.06 1.05.495 1.23.585.18.09.3.135.345.21.045.075.045.435-.095.829zM12 2C6.477 2 2 6.477 2 12c0 1.891.528 3.66 1.447 5.174L2 22l4.982-1.411A9.957 9.957 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/>
+                      </svg>
+                      <span>{retryingWa ? 'Mengirim...' : 'Kirim Ulang WA'}</span>
+                    </button>
+                  )}
+
+                  {selectedCell.cell.drive_file_id && (
+                    <a
+                      href={`/photo/${selectedCell.cell.drive_file_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-capsule-action primary"
+                      style={{ padding: '6px 14px', fontSize: '12px' }}
+                    >
+                      Buka Foto Asli ↗
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
 

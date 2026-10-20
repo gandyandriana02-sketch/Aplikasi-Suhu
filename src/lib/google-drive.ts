@@ -247,3 +247,26 @@ export async function updatePhotoVersionInDrive(params: {
     viewUrl
   };
 }
+
+/**
+ * Deletes a file permanently from Google Drive (FR-012)
+ */
+export async function deleteFileFromDrive(fileId: string): Promise<boolean> {
+  if (!fileId) return false;
+  try {
+    const token = await getGoogleAccessToken();
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+    return res.ok || res.status === 404; // 404 means already deleted
+  } catch (err) {
+    console.warn(`[Google Drive] Error deleting file ${fileId}:`, err);
+    return false;
+  }
+}

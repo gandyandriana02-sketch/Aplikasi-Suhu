@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
-import { getSheetValues, updateSheetValues } from '@/lib/google-sheets';
+import { getSheetValues, updateSheetValues, deleteSheetRow } from '@/lib/google-sheets';
 import { formatJakartaISO } from '@/lib/time';
-import { uploadPhotoToDrive, updatePhotoVersionInDrive } from '@/lib/google-drive';
+import { uploadPhotoToDrive, updatePhotoVersionInDrive, deleteFileFromDrive } from '@/lib/google-drive';
 import { recordAuditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -180,6 +180,97 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     console.error('Error PUT /api/transactions/[id]:', error);
     return NextResponse.json(
       { error: 'Gagal memperbarui transaksi: ' + (error.message || 'Unknown error') },
+      { status: 500 }
+    );
+  }
+}
+
+
+/**
+ * DELETE /api/transactions/[id]
+ * Deletes a single transaction from TRANSAKSI_SUHU and cleans up photo in Google Drive (FR-012)
+ */
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const session = await getSessionUser(req);
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Akses ditolak. Hanya untuk Admin.' }, { status: 403 });
+    }
+
+    if (session.must_change_password) {
+      return NextResponse.json(
+        { error: 'Wajib mengganti password awal sebelum mengakses fitur admin.' },
+        { status: 403 }
+      );
+    }
+
+    const transactionId = params.id;
+    if (!transactionId) {
+      return NextResponse.json({ error: 'ID transaksi wajib disertakan.' }, { status: 400 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const reason = body?.reason?.trim() || 'Dihapus oleh Administrator';
+
+    // 1. Fetch rows from TRANSAKSI_SUHU!A2:AB
+    const rows = await getSheetValues('TRANSAKSI_SUHU!A2:AB');
+    const rowIndex = rows.findIndex((r) => r[0] === transactionId);
+
+    if (rowIndex === -1) {
+      return NextResponse.json(
+        { error: 'Transaksi tidak ditemukan atau sudah dihapus.' },
+        { status: 404 }
+      );
+    }
+
+    const targetRow = rows[rowIndex];
+    // rowIndex in array starting at A2 -> in sheet (1-based header at index 0): zero-based index is rowIndex + 1
+    const zeroBasedSheetRowIndex = rowIndex + 1;
+
+    const warehouseId = targetRow[2] || 'WH-001';
+    const driveFileId = targetRow[19];
+    const locationName = targetRow[8] || '';
+    const periodLabel = targetRow[10] || '';
+    const tanggal = targetRow[5] || '';
+    const oldSuhu = targetRow[11] || '';
+
+    // 2. Delete physical row from TRANSAKSI_SUHU
+    await deleteSheetRow('TRANSAKSI_SUHU', zeroBasedSheetRowIndex);
+
+    // 3. Delete physical photo from Google Drive if exists
+    if (driveFileId) {
+      await deleteFileFromDrive(driveFileId);
+    }
+
+    // 4. Record in AUDIT_LOGS
+    await recordAuditLog({
+      actor_user_id: session.user_id,
+      actor_username: session.username,
+      actor_role: session.role,
+      action_category: 'TX_DELETE',
+      warehouse_id: warehouseId,
+      target_reference: transactionId,
+      before_value: {
+        suhu: oldSuhu,
+        tanggal,
+        location_name: locationName,
+        period_label: periodLabel,
+        drive_file_id: driveFileId
+      },
+      after_value: {
+        is_deleted: true
+      },
+      notes_or_reason: reason
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Transaksi berhasil dihapus.'
+    });
+  } catch (error: any) {
+    console.error('Error DELETE /api/transactions/[id]:', error);
+    return NextResponse.json(
+      { error: 'Gagal menghapus transaksi: ' + (error.message || 'Unknown error') },
       { status: 500 }
     );
   }
