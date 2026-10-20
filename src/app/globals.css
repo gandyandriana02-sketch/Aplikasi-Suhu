@@ -184,26 +184,13 @@ html, body {
 .app-unified-main {
   flex: 1;
   width: 100%;
-  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)); /* Clearance for Apple Floating Bottom Island */
+  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
 }
 
-/* Apple Floating Dynamic Island Bottom Navbar (Visible across all viewports) */
-.apple-floating-bottom-island-wrap {
-  position: fixed;
-  bottom: 24px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  z-index: 100;
-  pointer-events: none;
-  padding: 0 16px;
-}
-
-/* Floating Batch Save Bar (Floats above the Bottom Island) */
+/* Floating Batch Save Bar (Floats comfortably at the bottom within thumb reach) */
 .batch-save-bar {
   position: fixed;
-  bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 32px);
@@ -216,6 +203,17 @@ html, body {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   padding: 10px 16px;
   z-index: 95;
+}
+
+/* Mobile Side Menu Drawer Animations (DESIGN.md Bagian 5 & PRD v3.0) */
+@keyframes drawerFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes drawerSlideFromLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
 
 @keyframes appleViewEnter {
@@ -419,7 +417,7 @@ html, body {
   display: flex;
   flex-direction: column;
   position: relative;
-  padding-bottom: 140px;
+  padding-bottom: 32px;
   margin: 0 auto;
   transition: background 0.45s var(--apple-smooth);
 }
@@ -1266,7 +1264,7 @@ html, body {
   min-height: calc(100vh - 44px);
   display: flex;
   justify-content: center;
-  padding: 16px 20px 120px 20px;
+  padding: 16px 20px 40px 20px;
   transition: all 0.35s var(--apple-smooth);
 }
 

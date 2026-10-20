@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { WarehouseSwitchModal } from './WarehouseSwitchModal';
 import { AppIcon } from './AppIcon';
+import { MobileDrawer } from './MobileDrawer';
 
 interface AppHeaderProps {
   user?: {
@@ -18,6 +19,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ user }: AppHeaderProps) {
   const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeWarehouse, setActiveWarehouse] = useState<{
     warehouse_id: string;
     warehouse_code: string;
@@ -92,54 +94,84 @@ export function AppHeader({ user }: AppHeaderProps) {
             gap: '12px'
           }}
         >
-          {/* Brand Logo & Title */}
-          <Link
-            href="/dashboard"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              textDecoration: 'none'
-            }}
-          >
-            <div
+          {/* Left: Hamburger Button & Brand Identity */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={() => setIsDrawerOpen(true)}
+              aria-label="Buka Menu Samping"
+              title="Menu Navigasi Samping"
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '11px',
-                background: 'linear-gradient(135deg, #0071E3 0%, #0284C7 100%)',
-                color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0, 113, 227, 0.3)'
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
+                backgroundColor: '#F8FAFC',
+                color: '#1E293B',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'all 0.15s ease'
               }}
             >
-              <AppIcon name={appBranding.app_icon || 'thermometer'} size={20} color="#FFFFFF" strokeWidth={2.2} />
-            </div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
 
-            <div>
+            {/* Brand Logo & Title */}
+            <Link
+              href="/dashboard"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                textDecoration: 'none'
+              }}
+            >
               <div
                 style={{
-                  fontSize: '15px',
-                  fontWeight: 700,
-                  color: '#1D1D1F',
-                  letterSpacing: '-0.3px',
-                  lineHeight: 1.1
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '11px',
+                  background: 'linear-gradient(135deg, #0071E3 0%, #0284C7 100%)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0, 113, 227, 0.3)'
                 }}
               >
-                {appBranding.app_name || 'Warehouse Temperature'}
+                <AppIcon name={appBranding.app_icon || 'thermometer'} size={20} color="#FFFFFF" strokeWidth={2.2} />
               </div>
-              <div style={{ fontSize: '11px', color: '#86868B', marginTop: '1px' }}>
-                {activeWarehouse ? `${activeWarehouse.warehouse_code} — ${activeWarehouse.warehouse_name}` : 'Monitoring Cold Chain'}
-                {user?.role === 'ADMIN' && (
-                  <span style={{ marginLeft: '6px', fontSize: '10.5px', color: '#0071E3', fontWeight: 600 }}>
-                    • All Warehouses
-                  </span>
-                )}
+
+              <div>
+                <div
+                  style={{
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    color: '#1D1D1F',
+                    letterSpacing: '-0.3px',
+                    lineHeight: 1.1
+                  }}
+                >
+                  {appBranding.app_name || 'Warehouse Temperature'}
+                </div>
+                <div style={{ fontSize: '11px', color: '#86868B', marginTop: '1px' }}>
+                  {activeWarehouse ? `${activeWarehouse.warehouse_code} — ${activeWarehouse.warehouse_name}` : 'Monitoring Cold Chain'}
+                  {user?.role === 'ADMIN' && (
+                    <span style={{ marginLeft: '6px', fontSize: '10.5px', color: '#0071E3', fontWeight: 600 }}>
+                      • All Warehouses
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          </Link>
+            </Link>
+          </div>
 
           {/* User Profile Pill Button (Apple HIG Style) */}
           {user && (
@@ -196,6 +228,16 @@ export function AppHeader({ user }: AppHeaderProps) {
         onClose={() => setShowSwitchModal(false)}
         user={user}
         currentWarehouseId={activeWarehouse?.warehouse_id}
+      />
+
+      {/* Modern Slide-out Side Menu Drawer (DESIGN.md Bagian 5 & PRD v3.0) */}
+      <MobileDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        user={user}
+        activeWarehouse={activeWarehouse}
+        appBranding={appBranding}
+        onOpenSwitchModal={() => setShowSwitchModal(true)}
       />
     </>
   );

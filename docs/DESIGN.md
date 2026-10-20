@@ -234,9 +234,8 @@ Struktur navigasi mengikuti peran di PRD Bagian 5 dan 8.1.
 
 **Navigasi:**
 
-* **Ponsel, Member:** bilah atas (nama aplikasi, menu pengguna) + bilah bawah dua tab: "Input suhu" dan "Dashboard".
-* **Ponsel, Admin:** bilah atas dengan menu laci (*drawer*) berisi semua halaman.
-* **Desktop, Admin:** sidebar kiri tetap dengan daftar halaman, konten di kanan dengan lebar maksimum untuk tabel sesuai kebutuhan.
+* **Ponsel (Member & Admin):** Bilah atas dilengkapi tombol hamburger (☰) yang membuka laci menu samping (*Side Menu Drawer*) meluncur mulus dari sisi kiri layar. Laci menu menyajikan profil pengguna, badge gudang aktif, link operasional (Dashboard, Catat Suhu, Rekap Bulanan), pintasan modul Admin (jika role Admin), dan tombol Keluar. Tab bar bawah melayang ditiadakan sehingga area vertikal ponsel bersih dan leluasa tanpa elemen yang menutupi konten.
+* **Desktop, Admin:** Sidebar kiri tetap dengan daftar halaman, konten di kanan dengan lebar proporsional untuk tabel operasional.
 
 ### 5.1 Layar Input Suhu (ponsel)
 

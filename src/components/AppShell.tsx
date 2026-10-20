@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { AppHeader } from './AppHeader';
-import { BottomNav } from './BottomNav';
 import { IdleSessionManager } from './IdleSessionManager';
 
 interface AppShellProps {
@@ -72,10 +71,7 @@ export function AppShell({
         {children}
       </main>
 
-      {/* 3. Apple Floating Dynamic Island Nav (Universal across mobile & desktop) */}
-      <BottomNav user={activeUser} />
-
-      {/* 4. Idle Auto-Logout Manager (FR-006 & Section 8.1) */}
+      {/* 3. Idle Auto-Logout Manager (FR-006 & Section 8.1) */}
       <IdleSessionManager idleMinutes={idleTimeoutMinutes} />
     </div>
   );
