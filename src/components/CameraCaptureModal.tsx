@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 export interface CapturedPhotoData {
   base64: string; // JPEG data URL (e.g. data:image/jpeg;base64,...)
@@ -75,52 +75,90 @@ export default function CameraCaptureModal({
     }
   }
 
+  // Dual-stage GPS / Network location resolver (FR-008, BR-05, BR-06)
+  // Mode 1: Coba GPS satelit akurat (3.5 detik). Jika di dalam gedung/gudang/WiFi tanpa GPS fisik:
+  // Mode 2: Otomatis fallback ke triangulasi jaringan/WiFi (enableHighAccuracy: false)
+  const requestLocation = useCallback(() => {
+    if (!('geolocation' in navigator)) {
+      setGpsStatus('GPS tidak didukung browser');
+      return;
+    }
+
+    setGpsStatus('Mencari lokasi...');
+
+    const handleSuccess = async (position: GeolocationPosition) => {
+      const lat = position.coords.latitude.toFixed(6);
+      const lng = position.coords.longitude.toFixed(6);
+      const coordsStr = `${lat}, ${lng}`;
+      setGpsCoords(coordsStr);
+      gpsCoordsRef.current = coordsStr;
+      setGpsStatus(`Lokasi: ${coordsStr}`);
+
+      // Fetch reverse geocoded address via internal API route
+      try {
+        const res = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.address) {
+            setGpsAddress(data.address);
+            gpsAddressRef.current = data.address;
+          }
+        }
+      } catch {
+        // Abaikan jika offline / koneksi lambat
+      }
+    };
+
+    // Tahap 1: Coba High Accuracy (Satelit GPS)
+    navigator.geolocation.getCurrentPosition(
+      handleSuccess,
+      (errHigh) => {
+        // Jika izin diblokir permanen oleh user, jangan lakukan fallback sia-sia
+        if (errHigh.code === 1) { // PERMISSION_DENIED
+          console.warn('Geolocation permission denied:', errHigh.message);
+          setGpsCoords('');
+          setGpsStatus('Izin lokasi ditolak di browser');
+          return;
+        }
+
+        // Tahap 2: Fallback ke Mode Jaringan/WiFi (enableHighAccuracy: false)
+        // Cocok untuk laptop, PC, dan smartphone di dalam gedung warehouse dengan WiFi
+        console.warn('High-accuracy GPS timeout/failed, trying WiFi/Network location fallback...');
+        setGpsStatus('Mencari via WiFi/Jaringan...');
+
+        navigator.geolocation.getCurrentPosition(
+          handleSuccess,
+          (errLow) => {
+            console.warn('Network location fallback also failed:', errLow.message);
+            setGpsCoords('');
+            if (errLow.code === 1) {
+              setGpsStatus('Izin lokasi ditolak');
+            } else if (errLow.code === 2) {
+              setGpsStatus('WiFi/Lokasi belum terpetakan');
+            } else if (errLow.code === 3) {
+              setGpsStatus('Waktu pencarian lokasi habis');
+            } else {
+              setGpsStatus('Lokasi tidak tersedia');
+            }
+          },
+          { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+        );
+      },
+      { enableHighAccuracy: true, timeout: 3500, maximumAge: 15000 }
+    );
+  }, []);
+
   // Request camera and GPS on mount (FR-008, BR-05, BR-06)
   useEffect(() => {
     startCamera(facingMode);
-
-    // Request GPS location in parallel (optional per BR-06)
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const lat = position.coords.latitude.toFixed(6);
-          const lng = position.coords.longitude.toFixed(6);
-          const coordsStr = `${lat}, ${lng}`;
-          setGpsCoords(coordsStr);
-          gpsCoordsRef.current = coordsStr;
-          setGpsStatus(`GPS: ${coordsStr}`);
-
-          // Fetch reverse geocoded address via internal API route (supports Google Maps Geocoding & OpenStreetMap)
-          try {
-            const res = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
-            if (res.ok) {
-              const data = await res.json();
-              if (data.success && data.address) {
-                setGpsAddress(data.address);
-                gpsAddressRef.current = data.address;
-              }
-            }
-          } catch {
-            // Ignore if offline
-          }
-        },
-        (error) => {
-          console.warn('Geolocation warning:', error.message);
-          setGpsCoords('');
-          setGpsStatus('GPS tidak tersedia');
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
-      );
-    } else {
-      setGpsStatus('GPS tidak didukung');
-    }
+    requestLocation();
 
     return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, []);
+  }, [requestLocation]);
 
   function handleToggleCamera() {
     const nextMode = facingMode === 'environment' ? 'user' : 'environment';
@@ -693,16 +731,48 @@ export default function CameraCaptureModal({
           </div>
           <div
             style={{
-              color: gpsCoords ? '#34D399' : '#94A3B8',
+              color: gpsCoords ? '#34D399' : '#FBBF24',
               fontSize: '11px',
               fontWeight: 500,
               display: 'flex',
               alignItems: 'center',
-              gap: '4px'
+              gap: '6px'
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: gpsCoords ? '#34D399' : '#94A3B8' }} />
-            {gpsStatus}
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: gpsCoords
+                  ? '#34D399'
+                  : gpsStatus.includes('Mencari')
+                  ? '#60A5FA'
+                  : '#F59E0B'
+              }}
+            />
+            <span>{gpsStatus}</span>
+            {!gpsCoords && !gpsStatus.includes('Mencari') && (
+              <button
+                type="button"
+                onClick={requestLocation}
+                title="Coba cari ulang sinyal lokasi"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.18)',
+                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                  color: '#FFFFFF',
+                  borderRadius: '4px',
+                  padding: '1px 6px',
+                  fontSize: '10px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px'
+                }}
+              >
+                ↻ Coba Lagi
+              </button>
+            )}
           </div>
         </div>
       </div>
