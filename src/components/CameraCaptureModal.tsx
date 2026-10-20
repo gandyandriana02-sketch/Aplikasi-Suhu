@@ -181,6 +181,54 @@ export default function CameraCaptureModal({
     return lines;
   }
 
+  function drawShieldCheckmark(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number
+  ) {
+    ctx.save();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = Math.max(1.5, Math.round(size * 0.09));
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+
+    const w = size;
+    const h = size * 1.15;
+
+    // Shield outline
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.5, y);
+    ctx.lineTo(x + w, y + h * 0.22);
+    ctx.lineTo(x + w * 0.85, y + h * 0.70);
+    ctx.quadraticCurveTo(x + w * 0.5, y + h, x + w * 0.5, y + h);
+    ctx.quadraticCurveTo(x + w * 0.15, y + h * 0.70, x, y + h * 0.22);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Checkmark inside shield
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.28, y + h * 0.48);
+    ctx.lineTo(x + w * 0.44, y + h * 0.64);
+    ctx.lineTo(x + w * 0.72, y + h * 0.36);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function generatePhotoCode(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 14; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
   // Process Image: Draw to Canvas, Stamp Authentic Timemark / GPS Camera Watermark, & Compress (NFR-01, FR-008, BR-05, BR-06)
   function processImageToCanvas(imageSource: CanvasImageSource, vWidth: number, vHeight: number) {
     const canvas = canvasRef.current || document.createElement('canvas');
@@ -255,249 +303,188 @@ export default function CameraCaptureModal({
     }
     const pillText = `Koordinat: ${formattedCoords}`;
 
-    // 4. Calculate layout metrics matching Timemark Card Badge aesthetic (FR-008, BR-05, BR-06, NFR-01, NFR-03)
-    // Scale factor based on shorter image dimension so watermark is always crisp and proportionally large on mobile screens
-    const refDim = Math.min(targetWidth, targetHeight);
-    const scale = Math.max(1.0, Math.min(2.1, refDim / 520));
+    // 4. Calculate authentic Timemark layout metrics (1:1 replica of timermaker.jpeg)
+    const baseWidth = 948;
+    const scale = Math.max(0.75, Math.min(1.45, targetWidth / baseWidth));
 
-    const cardMargin = Math.round(18 * scale);
-    const cardPadX = Math.round(20 * scale);
-    const cardPadY = Math.round(18 * scale);
-    const cardRadius = Math.round(16 * scale);
-    const sectionGap = Math.round(10 * scale);
+    const padX = Math.round(32 * scale);
+    const padBottom = Math.round(26 * scale);
 
-    const clockFontSize = Math.round(52 * scale);
-    const tzFontSize = Math.round(17 * scale);
-    const dateFontSize = Math.round(19 * scale);
-    const dayFontSize = Math.round(15 * scale);
-    const badgeFontSize = Math.round(13 * scale);
-    const mainTextFontSize = Math.round(17 * scale);
-    const addressFontSize = Math.round(16 * scale);
-    const addressLineHeight = Math.round(22 * scale);
-    const gpsFontSize = Math.round(15 * scale);
+    const logoFontSize = Math.round(48 * scale);
+    const clockFontSize = Math.round(98 * scale);
+    const dateFontSize = Math.round(26 * scale);
+    const dayFontSize = Math.round(24 * scale);
+    const addressFontSize = Math.round(25 * scale);
+    const addressLineHeight = Math.round(34 * scale);
+    const metaFontSize = Math.round(24 * scale);
+    const coordsFontSize = Math.round(23 * scale);
+    const coordsBoxPadX = Math.round(14 * scale);
+    const coordsBoxH = Math.round(40 * scale);
+    const coordsBoxRadius = Math.round(6 * scale);
+    const footerFontSize = Math.round(21 * scale);
+    const shieldSize = Math.round(19 * scale);
 
-    const clockFont = `800 ${clockFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, BlinkMacSystemFont, sans-serif`;
-    const tzFont = `700 ${tzFontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
-    const dateFont = `700 ${dateFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    const dayFont = `500 ${dayFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    const badgeFont = `700 ${badgeFontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
-    const mainTextFont = `700 ${mainTextFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    const addressFont = `500 ${addressFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    const gpsFont = `600 ${gpsFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace`;
-
-    // Maximum card width (fills nicely on portrait, capped cleanly on wide landscape)
-    const cardW = Math.min(targetWidth - cardMargin * 2, Math.round(840 * scale));
-    const cardX = cardMargin;
-    const contentW = cardW - cardPadX * 2;
+    const logoFont = `italic 700 ${logoFontSize}px "Playfair Display", "Didot", "Bodoni MT", Georgia, serif`;
+    const clockFont = `700 ${clockFontSize}px "Roboto Condensed", "Arial Narrow", "DIN Alternate", -apple-system, sans-serif`;
+    const dateFont = `500 ${dateFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, sans-serif`;
+    const dayFont = `500 ${dayFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, sans-serif`;
+    const addressFont = `500 ${addressFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, sans-serif`;
+    const metaFont = `500 ${metaFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, sans-serif`;
+    const coordsFont = `500 ${coordsFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, sans-serif`;
+    const footerFont = `400 ${footerFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, sans-serif`;
+    const footerCodeFont = `700 ${footerFontSize}px "Roboto Condensed", "Arial Narrow", -apple-system, sans-serif`;
 
     // Wrap address lines
-    const fullAddress = activeAddress || 'Warehouse Temperature Report • Titik Pantau Gudang Terverifikasi';
-    const alamatBadgeText = '🏠 ALAMAT';
-    ctx.font = badgeFont;
-    const alamatBadgeW = ctx.measureText(alamatBadgeText).width + Math.round(16 * scale);
-    const alamatBadgeH = Math.round(22 * scale);
-
     ctx.font = addressFont;
-    const addressLines = wrapCanvasText(ctx, fullAddress, contentW - alamatBadgeW - Math.round(12 * scale));
+    const maxTextWidth = Math.min(targetWidth - padX * 2, Math.round(targetWidth * 0.90));
+    const fullAddress = activeAddress || 'Bitung Jaya, Cikupa, Kabupaten Tangerang, Banten 15710';
+    const addressLines = wrapCanvasText(ctx, fullAddress, maxTextWidth);
 
-    // Calculate Titik & Petugas badge sizes
-    const titikFullText = `📍 TITIK: ${locationName}`;
-    const petugasFullText = `👤 PETUGAS: ${petugasName}`;
-    ctx.font = mainTextFont;
-    const titikW = ctx.measureText(titikFullText).width + Math.round(22 * scale);
-    const petugasW = ctx.measureText(petugasFullText).width + Math.round(22 * scale);
-    const canFitRow2SideBySide = (titikW + petugasW + Math.round(12 * scale)) <= contentW;
-    const row2H = canFitRow2SideBySide ? Math.round(28 * scale) : Math.round(28 * scale) * 2 + Math.round(6 * scale);
+    // Calculate vertical spacing
+    const gapLogoClock = Math.round(10 * scale);
+    const gapClockAddress = Math.round(14 * scale);
+    const gapAddressMeta = Math.round(6 * scale);
+    const gapMetaCoords = Math.round(12 * scale);
+    const gapCoordsDivider = Math.round(14 * scale);
+    const gapDividerFooter = Math.round(12 * scale);
 
-    // Dynamic row heights
-    const row1H = clockFontSize;
-    const dividerGap = Math.round(8 * scale);
-    const row3H = Math.max(alamatBadgeH, addressLines.length * addressLineHeight);
-    const row4H = Math.round(32 * scale);
+    const totalWatermarkHeight =
+      logoFontSize +
+      gapLogoClock +
+      clockFontSize +
+      gapClockAddress +
+      (addressLines.length * addressLineHeight) +
+      gapAddressMeta +
+      metaFontSize +
+      gapMetaCoords +
+      coordsBoxH +
+      gapCoordsDivider +
+      1 +
+      gapDividerFooter +
+      Math.max(Math.round(shieldSize * 1.15), footerFontSize);
 
-    // Total Card Height
-    const totalCardH =
-      cardPadY * 2 +
-      row1H +
-      dividerGap +
-      Math.round(8 * scale) +
-      row2H +
-      sectionGap +
-      row3H +
-      sectionGap +
-      row4H;
+    const startY = targetHeight - padBottom - totalWatermarkHeight;
 
-    const cardY = targetHeight - cardMargin - totalCardH;
-
-    // 5. Draw smooth cinematic dark vignette at the bottom of the photo
+    // 5. Draw photographic subtle dark vignette gradient at the bottom
     const vignetteHeight = Math.min(
       targetHeight,
-      Math.round(totalCardH + cardMargin * 2 + 50 * scale)
+      Math.round(totalWatermarkHeight + padBottom * 2 + 50 * scale)
     );
     const vignette = ctx.createLinearGradient(0, targetHeight - vignetteHeight, 0, targetHeight);
     vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    vignette.addColorStop(0.35, 'rgba(0, 0, 0, 0.45)');
-    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+    vignette.addColorStop(0.30, 'rgba(0, 0, 0, 0.42)');
+    vignette.addColorStop(0.70, 'rgba(0, 0, 0, 0.72)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.88)');
 
     ctx.save();
     ctx.fillStyle = vignette;
     ctx.fillRect(0, targetHeight - vignetteHeight, targetWidth, vignetteHeight);
     ctx.restore();
 
-    // 6. Draw Timemark Dark Frosted Card Container (High Contrast & Clear Border)
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
-    ctx.shadowBlur = Math.round(14 * scale);
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = Math.round(4 * scale);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)'; // Deep solid dark slate (92% opacity)
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
-    ctx.lineWidth = Math.max(1.5, Math.round(1.8 * scale));
-    drawRoundedRect(ctx, cardX, cardY, cardW, totalCardH, cardRadius, true);
-    ctx.restore();
+    // 6. Draw Watermark Elements (1:1 exact replica of timermaker.jpeg)
+    let currentY = startY;
+    const photoCode = generatePhotoCode();
 
-    // 7. Render Card Content (Urutan: Jam/Tanggal → Titik & Petugas → Alamat → Koordinat GPS)
-    let currentY = cardY + cardPadY;
-
-    // --- ROW 1: Jam & Tanggal ---
     ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.90)';
+    ctx.shadowBlur = Math.round(3.5 * scale);
+    ctx.shadowOffsetX = Math.round(1 * scale);
+    ctx.shadowOffsetY = Math.round(1 * scale);
     ctx.textBaseline = 'top';
 
-    // Clock
+    // (A) Logo sociolla
+    ctx.font = logoFont;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText('sociolla', padX, currentY);
+    currentY += logoFontSize + gapLogoClock;
+
+    // (B) Clock + Divider Bar + Date/Day
     ctx.font = clockFont;
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(timeFormatted, cardX + cardPadX, currentY);
+    ctx.fillText(timeFormatted, padX, currentY);
     const clockW = ctx.measureText(timeFormatted).width;
 
-    // WIB Badge
-    ctx.font = tzFont;
-    ctx.fillStyle = '#38BDF8';
-    ctx.fillText('WIB', cardX + cardPadX + clockW + Math.round(8 * scale), currentY + Math.round(4 * scale));
-
-    // Date & Day to the right of clock
-    const dateX = cardX + cardPadX + clockW + Math.round(56 * scale);
-    ctx.font = dateFont;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(dateFormatted, dateX, currentY + Math.round(2 * scale));
-
-    ctx.font = dayFont;
-    ctx.fillStyle = '#94A3B8';
-    ctx.fillText(
-      dayFormatted,
-      dateX,
-      currentY + Math.round(2 * scale) + dateFontSize + Math.round(4 * scale)
-    );
-    ctx.restore();
-
-    currentY += row1H + dividerGap;
-
-    // Divider Line
+    // Vertical Divider Bar
+    const barX = padX + clockW + Math.round(14 * scale);
     ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.50)';
+    ctx.lineWidth = Math.max(1.5, Math.round(2 * scale));
     ctx.beginPath();
-    ctx.moveTo(cardX + cardPadX, currentY);
-    ctx.lineTo(cardX + cardW - cardPadX, currentY);
+    ctx.moveTo(barX, currentY + Math.round(6 * scale));
+    ctx.lineTo(barX, currentY + clockFontSize - Math.round(6 * scale));
     ctx.stroke();
     ctx.restore();
 
-    currentY += Math.round(10 * scale);
+    // Date & Day to the right of vertical bar
+    const dateX = barX + Math.round(14 * scale);
+    ctx.font = dateFont;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(dateFormatted, dateX, currentY + Math.round(8 * scale));
 
-    // --- ROW 2: Titik Pantau & Petugas ---
-    ctx.save();
-    ctx.textBaseline = 'middle';
-    const badgeH = Math.round(28 * scale);
-    const badgeRadius = Math.round(6 * scale);
-
-    if (canFitRow2SideBySide) {
-      // Titik pill
-      ctx.fillStyle = 'rgba(14, 165, 233, 0.22)';
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
-      ctx.lineWidth = 1;
-      drawRoundedRect(ctx, cardX + cardPadX, currentY, titikW, badgeH, badgeRadius, true);
-
-      ctx.font = mainTextFont;
-      ctx.fillStyle = '#38BDF8';
-      ctx.fillText(titikFullText, cardX + cardPadX + Math.round(10 * scale), currentY + badgeH / 2);
-
-      // Petugas pill
-      const petugasX = cardX + cardPadX + titikW + Math.round(12 * scale);
-      ctx.fillStyle = 'rgba(168, 85, 247, 0.22)';
-      ctx.strokeStyle = 'rgba(192, 132, 252, 0.55)';
-      ctx.lineWidth = 1;
-      drawRoundedRect(ctx, petugasX, currentY, petugasW, badgeH, badgeRadius, true);
-
-      ctx.font = mainTextFont;
-      ctx.fillStyle = '#C084FC';
-      ctx.fillText(petugasFullText, petugasX + Math.round(10 * scale), currentY + badgeH / 2);
-    } else {
-      // Stacked if narrow
-      ctx.fillStyle = 'rgba(14, 165, 233, 0.22)';
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
-      ctx.lineWidth = 1;
-      drawRoundedRect(ctx, cardX + cardPadX, currentY, Math.min(contentW, titikW), badgeH, badgeRadius, true);
-
-      ctx.font = mainTextFont;
-      ctx.fillStyle = '#38BDF8';
-      ctx.fillText(titikFullText, cardX + cardPadX + Math.round(10 * scale), currentY + badgeH / 2);
-
-      const line2Y = currentY + badgeH + Math.round(6 * scale);
-      ctx.fillStyle = 'rgba(168, 85, 247, 0.22)';
-      ctx.strokeStyle = 'rgba(192, 132, 252, 0.55)';
-      ctx.lineWidth = 1;
-      drawRoundedRect(ctx, cardX + cardPadX, line2Y, Math.min(contentW, petugasW), badgeH, badgeRadius, true);
-
-      ctx.font = mainTextFont;
-      ctx.fillStyle = '#C084FC';
-      ctx.fillText(petugasFullText, cardX + cardPadX + Math.round(10 * scale), line2Y + badgeH / 2);
-    }
-    ctx.restore();
-
-    currentY += row2H + sectionGap;
-
-    // --- ROW 3: Alamat Geocoding Lengkap ---
-    ctx.save();
-    ctx.fillStyle = 'rgba(245, 158, 11, 0.20)';
-    ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
-    ctx.lineWidth = 1;
-    drawRoundedRect(ctx, cardX + cardPadX, currentY, alamatBadgeW, alamatBadgeH, Math.round(6 * scale), true);
-
-    ctx.font = badgeFont;
-    ctx.fillStyle = '#FBBF24';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(alamatBadgeText, cardX + cardPadX + Math.round(8 * scale), currentY + alamatBadgeH / 2);
-
-    ctx.font = addressFont;
-    ctx.fillStyle = '#F1F5F9';
-    ctx.textBaseline = 'top';
-    const textStartX = cardX + cardPadX + alamatBadgeW + Math.round(10 * scale);
-    addressLines.forEach((line, idx) => {
-      ctx.fillText(line, textStartX, currentY + idx * addressLineHeight);
-    });
-    ctx.restore();
-
-    currentY += row3H + sectionGap;
-
-    // --- ROW 4: Koordinat GPS ---
-    ctx.save();
-    ctx.fillStyle = 'rgba(34, 197, 94, 0.16)';
-    ctx.strokeStyle = 'rgba(74, 222, 128, 0.45)';
-    ctx.lineWidth = 1;
-    drawRoundedRect(ctx, cardX + cardPadX, currentY, contentW, row4H, Math.round(8 * scale), true);
-
-    ctx.font = gpsFont;
-    ctx.fillStyle = '#4ADE80';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`🌐 GPS: ${formattedCoords}`, cardX + cardPadX + Math.round(12 * scale), currentY + row4H / 2);
-
-    // Right-hand watermark brand
-    const tagText = 'Warehouse Temperature Report';
     ctx.font = dayFont;
-    ctx.fillStyle = '#94A3B8';
-    const tagW = ctx.measureText(tagText).width;
-    if (contentW > Math.round(520 * scale)) {
-      ctx.fillText(tagText, cardX + cardPadX + contentW - tagW - Math.round(12 * scale), currentY + row4H / 2);
-    }
+    ctx.fillText(
+      dayFormatted,
+      dateX,
+      currentY + Math.round(8 * scale) + dateFontSize + Math.round(10 * scale)
+    );
+    currentY += clockFontSize + gapClockAddress;
+
+    // (C) Address Lines
+    ctx.font = addressFont;
+    ctx.fillStyle = '#FFFFFF';
+    addressLines.forEach((line, idx) => {
+      ctx.fillText(line, padX, currentY + idx * addressLineHeight);
+    });
+    currentY += (addressLines.length * addressLineHeight) + gapAddressMeta;
+
+    // (D) Titik Pantau & Petugas
+    ctx.font = metaFont;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(`Titik: ${locationName} • Petugas: ${petugasName}`, padX, currentY);
+    currentY += metaFontSize + gapMetaCoords;
+
+    // (E) Coordinates Translucent Box
+    const coordsText = `Koordinat: ${formattedCoords}`;
+    ctx.font = coordsFont;
+    const coordsTextW = ctx.measureText(coordsText).width;
+    const coordsBoxW = coordsTextW + coordsBoxPadX * 2;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    drawRoundedRect(ctx, padX, currentY, coordsBoxW, coordsBoxH, coordsBoxRadius, false);
+    ctx.restore();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(coordsText, padX + coordsBoxPadX, currentY + coordsBoxH / 2);
+    ctx.textBaseline = 'top';
+    currentY += coordsBoxH + gapCoordsDivider;
+
+    // (F) Thin Horizontal Divider
+    const dividerW = Math.min(coordsBoxW * 0.95, Math.round(targetWidth * 0.52));
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padX, currentY);
+    ctx.lineTo(padX + dividerW, currentY);
+    ctx.stroke();
+    ctx.restore();
+    currentY += 1 + gapDividerFooter;
+
+    // (G) Footer: Shield Checkmark + Kode Foto
+    drawShieldCheckmark(ctx, padX, currentY, shieldSize);
+
+    const codeStartX = padX + shieldSize + Math.round(8 * scale);
+    ctx.font = footerFont;
+    ctx.fillStyle = '#CBD5E1';
+    ctx.fillText('Kode Foto: ', codeStartX, currentY + Math.round(1 * scale));
+
+    const labelW = ctx.measureText('Kode Foto: ').width;
+    ctx.font = footerCodeFont;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(photoCode, codeStartX + labelW, currentY + Math.round(1 * scale));
+
     ctx.restore();
 
     // 9. Compress to JPEG with quality 0.80 (target < 350 KB, NFR-01)
