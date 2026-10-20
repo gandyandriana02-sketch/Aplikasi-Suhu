@@ -1679,7 +1679,7 @@ function AdminPageContent() {
                                 {settings.idle_timeout_minutes! >= 60
                                   ? `${Math.floor(settings.idle_timeout_minutes! / 60)} jam ${settings.idle_timeout_minutes! % 60 > 0 ? `${settings.idle_timeout_minutes! % 60} menit` : ''}`
                                   : `${settings.idle_timeout_minutes} menit`}
-                                ). Peringatan hitung mundur 30 detik akan muncul sebelum sesi ditutup.
+                                ). Pengguna akan langsung otomatis logout seketika saat batas waktu tercapai dan diarahkan kembali ke layar login awal.
                               </>
                             ) : (
                               'Auto-logout saat idle dinonaktifkan. Sesi hanya akan berakhir setelah 12 jam (1 shift kerja gudang) sejak login.'
