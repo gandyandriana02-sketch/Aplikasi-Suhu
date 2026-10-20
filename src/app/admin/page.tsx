@@ -43,6 +43,7 @@ interface SettingsData {
   holiday_dates: string[];
   unlocked_dates: string[];
   wa_notification_enabled: boolean;
+  idle_timeout_minutes?: number;
   signoff_maker_title?: string;
   signoff_maker_name?: string;
   signoff_checker_title?: string;
@@ -1578,6 +1579,111 @@ function AdminPageContent() {
                             />
                             <span className="switch-slider"></span>
                           </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Keamanan Sesi & Auto-Logout saat Idle (FR-006 & Section 8.1) */}
+                    <div className="settings-card">
+                      <div className="settings-card-head">
+                        <div>
+                          <h3 className="settings-card-title">
+                            Keamanan Sesi & Auto-Logout saat Idle
+                          </h3>
+                          <p className="settings-card-desc">
+                            Otomatis menutup sesi login jika perangkat tidak disentuh atau tidak aktif selama durasi tertentu demi mencegah akses tidak sah.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '8px' }}>
+                        <div>
+                          <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ios-ink)', display: 'block', marginBottom: '6px' }}>
+                            Batas Waktu Tidak Aktif (Idle Timeout):
+                          </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                            <select
+                              value={
+                                [0, 15, 30, 60, 120].includes(settings.idle_timeout_minutes ?? 0)
+                                  ? String(settings.idle_timeout_minutes ?? 0)
+                                  : 'custom'
+                              }
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === 'custom') {
+                                  const current = settings.idle_timeout_minutes ?? 0;
+                                  const nextVal = [0, 15, 30, 60, 120].includes(current) ? 45 : current;
+                                  setSettings({ ...settings, idle_timeout_minutes: nextVal });
+                                } else {
+                                  setSettings({ ...settings, idle_timeout_minutes: parseInt(val, 10) });
+                                }
+                              }}
+                              className="apple-select-input"
+                              style={{ padding: '8px 14px', fontSize: '13px', fontWeight: 600, minWidth: '220px' }}
+                            >
+                              <option value="0">Nonaktif (Sesi Normal 12 Jam)</option>
+                              <option value="15">15 Menit</option>
+                              <option value="30">30 Menit (Rekomendasi Standar)</option>
+                              <option value="60">1 Jam (60 Menit)</option>
+                              <option value="120">2 Jam (120 Menit)</option>
+                              <option value="custom">Lainnya / Kustom (Edit Sendiri)...</option>
+                            </select>
+
+                            {/* Opsi Edit Sendiri (Kustom Jam/Menit) */}
+                            {![0, 15, 30, 60, 120].includes(settings.idle_timeout_minutes ?? 0) && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="720"
+                                  value={settings.idle_timeout_minutes || ''}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value, 10);
+                                    setSettings({
+                                      ...settings,
+                                      idle_timeout_minutes: isNaN(val) ? 0 : Math.max(1, Math.min(720, val))
+                                    });
+                                  }}
+                                  placeholder="Menit"
+                                  className="apple-input-text"
+                                  style={{ width: '85px', padding: '8px 10px', fontSize: '14px', fontWeight: 700, textAlign: 'center' }}
+                                />
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ios-muted)' }}>
+                                  menit
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Helper info badge */}
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '12px',
+                            backgroundColor: (settings.idle_timeout_minutes ?? 0) > 0 ? '#EFF6FF' : '#F8FAFC',
+                            border: `1px solid ${(settings.idle_timeout_minutes ?? 0) > 0 ? '#BFDBFE' : '#E2E8F0'}`,
+                            fontSize: '12px',
+                            color: (settings.idle_timeout_minutes ?? 0) > 0 ? '#1E40AF' : '#64748B',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <span style={{ fontSize: '15px' }}>ℹ️</span>
+                          <span>
+                            {(settings.idle_timeout_minutes ?? 0) > 0 ? (
+                              <>
+                                Pengguna otomatis logout setelah <strong>{settings.idle_timeout_minutes} menit</strong> tanpa aktivitas (
+                                {settings.idle_timeout_minutes! >= 60
+                                  ? `${Math.floor(settings.idle_timeout_minutes! / 60)} jam ${settings.idle_timeout_minutes! % 60 > 0 ? `${settings.idle_timeout_minutes! % 60} menit` : ''}`
+                                  : `${settings.idle_timeout_minutes} menit`}
+                                ). Peringatan hitung mundur 30 detik akan muncul sebelum sesi ditutup.
+                              </>
+                            ) : (
+                              'Auto-logout saat idle dinonaktifkan. Sesi hanya akan berakhir setelah 12 jam (1 shift kerja gudang) sejak login.'
+                            )}
+                          </span>
                         </div>
                       </div>
                     </div>

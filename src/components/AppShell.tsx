@@ -3,6 +3,7 @@
 import React from 'react';
 import { AppHeader } from './AppHeader';
 import { BottomNav } from './BottomNav';
+import { IdleSessionManager } from './IdleSessionManager';
 
 interface AppShellProps {
   user?: {
@@ -23,9 +24,10 @@ export function AppShell({
   children
 }: AppShellProps) {
   const [cachedUser, setCachedUser] = React.useState<AppShellProps['user']>(user);
+  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = React.useState<number>(0);
 
   React.useEffect(() => {
-    // Initial fetch to ensure real-time profile synchronization from sheet USERS
+    // Initial fetch to ensure real-time profile synchronization from sheet USERS & idle settings
     fetch('/api/auth/me', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -34,6 +36,9 @@ export function AppShell({
           try {
             sessionStorage.setItem('wh_cached_user', JSON.stringify(data.user));
           } catch {}
+        }
+        if (typeof data?.idle_timeout_minutes === 'number') {
+          setIdleTimeoutMinutes(data.idle_timeout_minutes);
         }
       })
       .catch(() => {});
@@ -69,6 +74,9 @@ export function AppShell({
 
       {/* 3. Apple Floating Dynamic Island Nav (Universal across mobile & desktop) */}
       <BottomNav user={activeUser} />
+
+      {/* 4. Idle Auto-Logout Manager (FR-006 & Section 8.1) */}
+      <IdleSessionManager idleMinutes={idleTimeoutMinutes} />
     </div>
   );
 }

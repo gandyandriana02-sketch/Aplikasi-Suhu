@@ -13,6 +13,21 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [shake, setShake] = useState(false);
   const [showHelpSheet, setShowHelpSheet] = useState(false);
+  const [idleNotice, setIdleNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reason') === 'idle_timeout') {
+        const mins = params.get('mins');
+        setIdleNotice(
+          mins && parseInt(mins, 10) > 0
+            ? `Sesi Anda telah berakhir otomatis karena tidak ada aktivitas selama ${mins} menit demi menjaga keamanan data operasional gudang.`
+            : 'Sesi Anda telah berakhir otomatis karena tidak ada aktivitas demi menjaga keamanan data operasional gudang.'
+        );
+      }
+    }
+  }, []);
 
   const [appInfo, setAppInfo] = useState<{ app_name: string; app_icon: string }>({
     app_name: 'Warehouse Temperature Report',
@@ -151,6 +166,38 @@ export default function LoginPage() {
           <h1 className="app-title">{appInfo.app_name || 'Warehouse Temperature Report'}</h1>
           <p className="app-subtitle">Sistem Pencatatan Suhu Gudang</p>
         </div>
+
+        {/* IDLE TIMEOUT NOTICE BANNER */}
+        {idleNotice && !errorMessage && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              padding: '12px 16px',
+              borderRadius: '16px',
+              backgroundColor: '#FFFBEB',
+              border: '1px solid #FDE68A',
+              color: '#92400E',
+              fontSize: '12.5px',
+              lineHeight: 1.45,
+              marginBottom: '16px',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" style={{ flexShrink: 0, marginTop: '2px' }}>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <div>
+              <strong style={{ display: 'block', marginBottom: '2px', color: '#B45309' }}>Sesi Berakhir Otomatis</strong>
+              <span>{idleNotice}</span>
+            </div>
+          </div>
+        )}
 
         {/* ERROR ALERT BANNER */}
         {errorMessage && (

@@ -57,5 +57,18 @@ export async function GET(req: NextRequest) {
     // Fallback gracefully to session token payload
   }
 
-  return NextResponse.json({ user: session });
+  let idle_timeout_minutes = 0;
+  try {
+    const settingsRows = await getSheetValues('SETTINGS!A2:C');
+    const idleRow = settingsRows.find(r => r[0] === 'GLOBAL' && r[1] === 'idle_timeout_minutes');
+    if (idleRow && idleRow[2]) {
+      const parsed = parseInt(idleRow[2], 10);
+      if (!isNaN(parsed) && parsed >= 0) idle_timeout_minutes = parsed;
+    }
+  } catch {}
+
+  return NextResponse.json({
+    user: session,
+    idle_timeout_minutes
+  });
 }

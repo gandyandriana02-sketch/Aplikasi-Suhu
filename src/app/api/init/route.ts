@@ -181,6 +181,7 @@ export async function POST(req: NextRequest) {
     ];
     const initialSettingsRows = [
       ['GLOBAL', 'app_name', 'Warehouse Temperature Report', 'Nama aplikasi pada header dan cetakan laporan', 'SYSTEM', nowISO],
+      ['GLOBAL', 'idle_timeout_minutes', '0', 'Batas waktu tidak aktif pengguna dalam menit sebelum logout otomatis. 0 = nonaktif.', 'SYSTEM', nowISO],
       ['WH-001', 'max_temp_limit', '30', 'Batas suhu maksimal aktif CK01 dalam °C', 'SYSTEM', nowISO],
       ['WH-001', 'lock_sunday', 'TRUE', 'Kunci input otomatis pada hari Minggu bagi Member di CK01', 'SYSTEM', nowISO],
       ['WH-001', 'holiday_dates', '[]', 'JSON Array tanggal libur CK01', 'SYSTEM', nowISO],
@@ -192,7 +193,7 @@ export async function POST(req: NextRequest) {
       ['WH-002', 'unlocked_dates', '[]', 'JSON Array tanggal buka khusus CK02', 'SYSTEM', nowISO],
       ['WH-002', 'wa_notification_enabled', 'TRUE', 'Saklar peringatan WhatsApp CK02', 'SYSTEM', nowISO]
     ];
-    await updateSheetValues('SETTINGS!A1:F12', [settingsHeader, ...initialSettingsRows], 'RAW');
+    await updateSheetValues('SETTINGS!A1:F13', [settingsHeader, ...initialSettingsRows], 'RAW');
 
     // 4.7 TRANSAKSI_SUHU
     const transaksiHeader = [

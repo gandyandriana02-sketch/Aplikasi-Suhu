@@ -26,6 +26,9 @@ File - *
 *.webp
 *.jpeg
 *.pdf
+*.xlsx
+*.csv
+.~lock.*
 
 # Vercel
 .vercel

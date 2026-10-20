@@ -12,6 +12,7 @@ export interface WarehouseSettings {
   holiday_dates: string[];
   unlocked_dates: string[];
   wa_notification_enabled: boolean;
+  idle_timeout_minutes: number;
   app_name: string;
   app_icon: string;
   signoff_maker_title: string;
@@ -28,6 +29,7 @@ const DEFAULT_SETTINGS: WarehouseSettings = {
   holiday_dates: [],
   unlocked_dates: [],
   wa_notification_enabled: true,
+  idle_timeout_minutes: 0, // 0 = disabled (follows standard 12-hour session)
   app_name: 'Warehouse Temperature Report',
   app_icon: 'thermometer',
   signoff_maker_title: 'Dibuat Oleh',
@@ -49,6 +51,9 @@ function applyRow(settings: WarehouseSettings, key: string, val: any) {
     settings.lock_sunday = String(val).toUpperCase() === 'TRUE';
   } else if (k === 'wa_notification_enabled') {
     settings.wa_notification_enabled = String(val).toUpperCase() === 'TRUE';
+  } else if (k === 'idle_timeout_minutes') {
+    const num = parseInt(val, 10);
+    if (!isNaN(num) && num >= 0) settings.idle_timeout_minutes = num;
   } else if (k === 'holiday_dates' || k === 'unlocked_dates') {
     try {
       const parsed = typeof val === 'string' ? JSON.parse(val || '[]') : val;

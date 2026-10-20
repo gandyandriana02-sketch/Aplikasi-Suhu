@@ -77,6 +77,7 @@ export async function PUT(req: NextRequest) {
       'holiday_dates',
       'unlocked_dates',
       'wa_notification_enabled',
+      'idle_timeout_minutes',
       'signoff_maker_title',
       'signoff_maker_name',
       'signoff_checker_title',
@@ -92,7 +93,7 @@ export async function PUT(req: NextRequest) {
 
     for (const key of allowedKeys) {
       if (body[key] !== undefined) {
-        const whScope = (key === 'app_name' || key === 'app_icon') ? 'GLOBAL' : targetWhId;
+        const whScope = (key === 'app_name' || key === 'app_icon' || key === 'idle_timeout_minutes') ? 'GLOBAL' : targetWhId;
         const rowIndex = mutableRows.findIndex(r => 
           (whScope === 'GLOBAL' ? r[0] === 'GLOBAL' : resolveCanonicalWarehouseId(r[0], whRows) === targetWhId) && r[1] === key
         );
@@ -101,6 +102,10 @@ export async function PUT(req: NextRequest) {
         if (key === 'max_temp_limit') {
           const num = parseFloat(body[key]);
           if (isNaN(num)) continue;
+          newValString = String(num);
+        } else if (key === 'idle_timeout_minutes') {
+          const num = parseInt(body[key], 10);
+          if (isNaN(num) || num < 0) continue;
           newValString = String(num);
         } else if (typeof body[key] === 'boolean') {
           newValString = body[key] ? 'TRUE' : 'FALSE';
