@@ -122,7 +122,10 @@ export type AuditActionCategory =
   | 'WA_RETRY'
   | 'WH_SWITCH'
   | 'WH_MGMT'
-  | 'WH_ACCESS_MGMT';
+  | 'WH_ACCESS_MGMT'
+  | 'DATA_BACKUP'
+  | 'DATA_RESTORE'
+  | 'DATA_CLEANUP';
 
 export interface AuditLog {
   log_id: string;

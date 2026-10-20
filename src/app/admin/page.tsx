@@ -203,6 +203,19 @@ function AdminPageContent() {
   const [retryTxId, setRetryTxId] = useState('');
   const [retryProcessing, setRetryProcessing] = useState(false);
 
+  // BACKUP & RESTORE & CLEANUP STATE (FR-025, FR-026)
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+
+  const [showCleanupModal, setShowCleanupModal] = useState(false);
+  const [cleanupConfirmText, setCleanupConfirmText] = useState('');
+  const [cleanupClearPhotos, setCleanupClearPhotos] = useState(true);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupError, setCleanupError] = useState<string | null>(null);
+
   // Load Current User and verify Admin
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' })
@@ -656,6 +669,116 @@ function AdminPageContent() {
       alert(err.message);
     } finally {
       setSettingsSaving(false);
+    }
+  }
+
+  // =========================================================================
+  // BACKUP, RESTORE & TESTING CLEANUP HANDLERS (FR-025, FR-026)
+  // =========================================================================
+
+  // Unduh Berkas Cadangan (.JSON atau .XLSX)
+  async function handleDownloadBackup(format: 'json' | 'xlsx' = 'json') {
+    setBackupLoading(true);
+    try {
+      const res = await fetch(`/api/admin/backup?format=${format}`);
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || 'Gagal mengunduh cadangan data.');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.download = format === 'xlsx' ? `Backup_Database_Suhu_${dateStr}.xlsx` : `Backup_Database_Suhu_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      flashSuccess(`Berkas cadangan sistem (${format.toUpperCase()}) berhasil diunduh.`);
+    } catch {
+      setError('Terjadi kesalahan jaringan saat mengunduh cadangan.');
+    } finally {
+      setBackupLoading(false);
+    }
+  }
+
+  // Pemulihan Database dari Berkas JSON (Restore)
+  async function handleRestoreSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!restoreFile) {
+      setRestoreError('Pilih berkas .json cadangan terlebih dahulu.');
+      return;
+    }
+    setRestoreLoading(true);
+    setRestoreError(null);
+    try {
+      const text = await restoreFile.text();
+      let jsonPayload;
+      try {
+        jsonPayload = JSON.parse(text);
+      } catch {
+        setRestoreError('Berkas yang dipilih bukan format JSON yang valid.');
+        setRestoreLoading(false);
+        return;
+      }
+
+      const res = await fetch('/api/admin/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sheets: jsonPayload.sheets || jsonPayload,
+          reason: 'Pemulihan data manual oleh Administrator dari menu Pengaturan'
+        })
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setRestoreError(d.error || 'Gagal memulihkan database.');
+        return;
+      }
+      setShowRestoreModal(false);
+      setRestoreFile(null);
+      flashSuccess(d.message || 'Database berhasil dipulihkan dari cadangan.');
+      await loadSettingsForWh(selectedSettingsWhId);
+    } catch {
+      setRestoreError('Terjadi kesalahan jaringan saat memulihkan database.');
+    } finally {
+      setRestoreLoading(false);
+    }
+  }
+
+  // Pembersihan Data Sampah Testing (Reset Transaksi)
+  async function handleCleanupSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (cleanupConfirmText.trim() !== 'RESET') {
+      setCleanupError('Harap ketik "RESET" dengan huruf kapital untuk mengonfirmasi.');
+      return;
+    }
+    setCleanupLoading(true);
+    setCleanupError(null);
+    try {
+      const res = await fetch('/api/admin/cleanup-testing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirmation: 'RESET',
+          clear_photos: cleanupClearPhotos,
+          reason: 'Pembersihan data sampah testing pasca validasi oleh Administrator'
+        })
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setCleanupError(d.error || 'Gagal membersihkan data testing.');
+        return;
+      }
+      setShowCleanupModal(false);
+      setCleanupConfirmText('');
+      flashSuccess(d.message || 'Data transaksi testing berhasil dibersihkan.');
+    } catch {
+      setCleanupError('Terjadi kesalahan jaringan saat membersihkan data testing.');
+    } finally {
+      setCleanupLoading(false);
     }
   }
 
@@ -1946,6 +2069,136 @@ function AdminPageContent() {
                       </div>
                     </div>
 
+                    {/* ============================================================= */}
+                    {/* CADANGAN & EKSPOR SELURUH DATABASE SISTEM (FR-025)            */}
+                    {/* ============================================================= */}
+                    <div className="settings-card" style={{ gridColumn: '1 / -1' }}>
+                      <div className="settings-card-head">
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '18px' }}>💾</span>
+                            <h3 className="settings-card-title">
+                              Cadangan & Ekspor Seluruh Database (Backup & Export)
+                            </h3>
+                          </div>
+                          <p className="settings-card-desc">
+                            Unduh seluruh salinan data Google Sheets untuk arsip offline atau cadangan keamanan sebelum pengujian. Berkas cadangan .JSON dapat digunakan untuk memulihkan (restore) data kapan saja.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '16px' }}>
+                        <button
+                          type="button"
+                          disabled={backupLoading}
+                          onClick={() => handleDownloadBackup('json')}
+                          className="btn-action-primary"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '13px' }}
+                          title="Unduh cadangan data sistem terstruktur dalam format JSON"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                          <span>{backupLoading ? 'Menyiapkan...' : 'Unduh Cadangan Lengkap (.JSON)'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={backupLoading}
+                          onClick={() => handleDownloadBackup('xlsx')}
+                          className="btn-action-secondary"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '13px', borderColor: '#86EFAC', color: '#15803D', background: '#F0FDF4' }}
+                          title="Ekspor seluruh 8 sheet data ke dalam satu workbook Excel"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="8" y1="13" x2="16" y2="13" />
+                            <line x1="8" y1="17" x2="16" y2="17" />
+                          </svg>
+                          <span>{backupLoading ? 'Menyiapkan...' : 'Ekspor Semua Sheet (.XLSX)'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRestoreFile(null);
+                            setRestoreError(null);
+                            setShowRestoreModal(true);
+                          }}
+                          className="btn-action-secondary"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '13px' }}
+                          title="Pulihkan database dari berkas backup JSON"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                          </svg>
+                          <span>Pulihkan Database (Restore)...</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* ============================================================= */}
+                    {/* ZONA PEMELIHARAAN: BERSIHKAN DATA TESTING (FR-026)            */}
+                    {/* ============================================================= */}
+                    <div className="settings-card" style={{ gridColumn: '1 / -1', border: '1.5px solid #FECACA', background: '#FFFBFB' }}>
+                      <div className="settings-card-head">
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '18px' }}>🧹</span>
+                            <h3 className="settings-card-title" style={{ color: '#DC2626' }}>
+                              Pembersihan Data Testing (Reset Transaksi)
+                            </h3>
+                            <span style={{ fontSize: '10.5px', fontWeight: 800, padding: '2px 8px', borderRadius: '12px', background: '#FEE2E2', color: '#B91C1C' }}>
+                              ZONA PEMELIHARAAN
+                            </span>
+                          </div>
+                          <p className="settings-card-desc" style={{ color: '#7F1D1D' }}>
+                            Fitur ini digunakan saat masa uji coba/testing selesai dan aplikasi siap digunakan secara resmi (Go-Live). Seluruh baris transaksi di <code>TRANSAKSI_SUHU</code> dan foto bukti terkait akan dibersihkan, sedangkan akun pengguna, daftar gudang, master lokasi, jadwal, dan pengaturan lainnya <strong>tetap utuh dan aman</strong>.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                        <span style={{ fontSize: '12px', color: '#991B1B', fontWeight: 500 }}>
+                          Pastikan Anda sudah mengunduh cadangan (.JSON / .XLSX) sebelum membersihkan data.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCleanupConfirmText('');
+                            setCleanupClearPhotos(true);
+                            setCleanupError(null);
+                            setShowCleanupModal(true);
+                          }}
+                          style={{
+                            backgroundColor: '#DC2626',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '30px',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.25)'
+                          }}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                          <span>Bersihkan Data Testing...</span>
+                        </button>
+                      </div>
+                    </div>
+
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
                     <button
                       type="button"
@@ -2050,6 +2303,10 @@ function AdminPageContent() {
                         <option value="WH_ACCESS_MGMT">Akses Warehouse (WH_ACCESS_MGMT)</option>
                         <option value="SETTING_CHANGE">Pengaturan (SETTING_CHANGE)</option>
                         <option value="WA_RETRY">Retry WhatsApp (WA_RETRY)</option>
+                        <option value="TX_DELETE">Hapus Transaksi (TX_DELETE)</option>
+                        <option value="DATA_BACKUP">Cadangan Data (DATA_BACKUP)</option>
+                        <option value="DATA_RESTORE">Pemulihan Data (DATA_RESTORE)</option>
+                        <option value="DATA_CLEANUP">Pembersihan Testing (DATA_CLEANUP)</option>
                       </select>
                     </div>
 
@@ -2625,6 +2882,220 @@ function AdminPageContent() {
                 Tutup
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL 7: RESTORE DATABASE (DARI FILE BACKUP JSON) (FR-025)          */}
+      {/* =================================================================== */}
+      {showRestoreModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="apple-modal-overlay"
+          onClick={() => {
+            if (!restoreLoading) setShowRestoreModal(false);
+          }}
+        >
+          <div
+            className="apple-modal-box"
+            style={{ maxWidth: '520px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-head-bar">
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ios-blue)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Pemulihan Database
+                </span>
+                <h2 className="modal-head-title" style={{ marginTop: '2px' }}>
+                  Restore dari File Cadangan
+                </h2>
+              </div>
+              <button
+                type="button"
+                disabled={restoreLoading}
+                onClick={() => setShowRestoreModal(false)}
+                className="modal-close-btn"
+                title="Tutup dialog"
+                aria-label="Tutup dialog"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleRestoreSubmit}>
+              <div className="modal-body-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '12px', padding: '12px 14px', fontSize: '12.5px', color: '#1E40AF', lineHeight: 1.5 }}>
+                  Unggah berkas <code>.json</code> cadangan sistem yang sebelumnya Anda unduh. Seluruh data sheet dalam file cadangan akan disinkronisasikan kembali ke Google Sheets.
+                </div>
+
+                <div className="form-group-item">
+                  <label className="form-label">Pilih Berkas Cadangan (.JSON)</label>
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    required
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      setRestoreFile(f);
+                      setRestoreError(null);
+                    }}
+                    className="apple-input-text"
+                    style={{ padding: '8px 12px', fontSize: '13px' }}
+                  />
+                  {restoreFile && (
+                    <span style={{ fontSize: '11.5px', color: 'var(--ios-muted)', marginTop: '4px', display: 'block' }}>
+                      Ukuran: {(restoreFile.size / 1024).toFixed(1)} KB • Tipe: {restoreFile.name}
+                    </span>
+                  )}
+                </div>
+
+                {restoreError && (
+                  <div style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: '10px', padding: '10px 12px', fontSize: '12px', color: '#991B1B', fontWeight: 600 }}>
+                    {restoreError}
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-foot-bar">
+                <button
+                  type="button"
+                  disabled={restoreLoading}
+                  onClick={() => setShowRestoreModal(false)}
+                  className="btn-action-secondary"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={restoreLoading || !restoreFile}
+                  className="btn-action-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {restoreLoading ? 'Memulihkan...' : 'Mulai Pulihkan Database'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL 8: PEMBERSIHAN DATA TESTING (RESET TRANSAKSI) (FR-026)        */}
+      {/* =================================================================== */}
+      {showCleanupModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="apple-modal-overlay"
+          onClick={() => {
+            if (!cleanupLoading) setShowCleanupModal(false);
+          }}
+        >
+          <div
+            className="apple-modal-box"
+            style={{ maxWidth: '520px', border: '1.5px solid #FCA5A5' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-head-bar">
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: '#DC2626', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Konfirmasi Pembersihan Data
+                </span>
+                <h2 className="modal-head-title" style={{ marginTop: '2px', color: '#B91C1C' }}>
+                  Bersihkan Seluruh Transaksi Testing?
+                </h2>
+              </div>
+              <button
+                type="button"
+                disabled={cleanupLoading}
+                onClick={() => setShowCleanupModal(false)}
+                className="modal-close-btn"
+                title="Tutup dialog"
+                aria-label="Tutup dialog"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleCleanupSubmit}>
+              <div className="modal-body-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '12px', padding: '14px', fontSize: '12.5px', color: '#991B1B', lineHeight: 1.5 }}>
+                  <strong>Perhatian:</strong> Tindakan ini akan mengosongkan seluruh baris transaksi di <code>TRANSAKSI_SUHU</code>. Seluruh akun pengguna, master lokasi, jadwal, dan batas suhu <strong>tetap utuh dan aman</strong>.
+                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--ios-ink)', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={cleanupClearPhotos}
+                    onChange={(e) => setCleanupClearPhotos(e.target.checked)}
+                    style={{ width: '16px', height: '16px', accentColor: '#DC2626' }}
+                  />
+                  <span>Bersihkan juga seluruh berkas foto bukti testing di Google Drive</span>
+                </label>
+
+                <div className="form-group-item">
+                  <label className="form-label" style={{ color: '#7F1D1D' }}>
+                    Ketik kata <strong>RESET</strong> untuk konfirmasi:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={cleanupConfirmText}
+                    onChange={(e) => {
+                      setCleanupConfirmText(e.target.value);
+                      setCleanupError(null);
+                    }}
+                    placeholder="Ketik RESET"
+                    className="apple-input-text"
+                    style={{ borderColor: '#FCA5A5', fontWeight: 700, letterSpacing: '1px' }}
+                    autoFocus
+                  />
+                </div>
+
+                {cleanupError && (
+                  <div style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: '10px', padding: '10px 12px', fontSize: '12px', color: '#991B1B', fontWeight: 600 }}>
+                    {cleanupError}
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-foot-bar">
+                <button
+                  type="button"
+                  disabled={cleanupLoading}
+                  onClick={() => setShowCleanupModal(false)}
+                  className="btn-action-secondary"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={cleanupLoading || cleanupConfirmText.trim() !== 'RESET'}
+                  style={{
+                    backgroundColor: '#DC2626',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    padding: '9px 20px',
+                    borderRadius: '24px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: cleanupConfirmText.trim() === 'RESET' ? 'pointer' : 'not-allowed',
+                    opacity: cleanupConfirmText.trim() === 'RESET' ? 1 : 0.6,
+                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.3)'
+                  }}
+                >
+                  {cleanupLoading ? 'Membersihkan...' : 'Ya, Bersihkan Data Testing'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
