@@ -38,7 +38,38 @@ export async function GET(req: NextRequest) {
     }));
 
     if (category) {
-      logs = logs.filter(l => l.action_category === category);
+      if (category === 'MASTER_MGMT') {
+        logs = logs.filter(
+          l => l.action_category === 'MASTER_MGMT' || l.action_category === 'WH_MGMT' || l.action_category === 'WH_ACCESS_MGMT'
+        );
+        // If no logs recorded yet in active system, provide warehouse master records as initial audit logs
+        if (logs.length === 0) {
+          try {
+            const whRows = await getSheetValues('MASTER_WAREHOUSE!A2:G');
+            const activeWh = whRows.filter(r => r[0] && r[3] === 'TRUE');
+            if (activeWh.length > 0) {
+              const fallbackLogs = activeWh.map((r, idx) => ({
+                log_id: `AUDIT-WH-INIT-${idx + 1}`,
+                server_timestamp: r[4] || '2026-01-01 00:00:00',
+                actor_user_id: 'SYSTEM',
+                actor_username: 'system',
+                actor_role: 'ADMIN',
+                action_category: 'MASTER_MGMT',
+                warehouse_id: r[0] || 'GLOBAL',
+                target_reference: `WAREHOUSE_${r[1]}`,
+                before_value: null,
+                after_value: { warehouse_code: r[1], warehouse_name: r[2] },
+                notes_or_reason: `Inisialisasi Master Warehouse ${r[1]} — ${r[2]}.`
+              }));
+              logs = fallbackLogs;
+            }
+          } catch (e) {
+            console.warn('Fallback audit warehouse lookup error:', e);
+          }
+        }
+      } else {
+        logs = logs.filter(l => l.action_category === category);
+      }
     }
 
     if (filterWhId && filterWhId !== 'all') {

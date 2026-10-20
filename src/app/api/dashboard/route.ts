@@ -85,31 +85,48 @@ export async function GET(req: NextRequest) {
     // r[15]: petugas_name, r[17]: server_received_at, r[19]: drive_file_id,
     // r[20]: drive_file_name, r[21]: drive_view_url, r[23]: wa_notif_status,
     // r[24]: wa_error_message, r[25]: wa_sent_at
+    const mapTxRow = (r: any[]) => ({
+      transaction_id: r[0],
+      warehouse_id: r[2],
+      warehouse_code: r[3] || '',
+      warehouse_name: r[4] || '',
+      tanggal: r[5],
+      location_id: r[7],
+      location_name: r[8],
+      period_id: r[9],
+      period_label: r[10],
+      suhu: parseFloat(r[11] || '0'),
+      max_limit_snapshot: parseFloat(r[12] || '30'),
+      status_suhu: (r[13] || 'NORMAL') as 'NORMAL' | 'MELEBIHI_BATAS',
+      user_id: r[14],
+      petugas_name: r[15],
+      server_received_at: r[17],
+      drive_file_id: r[19],
+      drive_file_name: r[20],
+      drive_view_url: r[21],
+      wa_notif_status: r[23] || 'NOT_REQUIRED',
+      wa_error_message: r[24] || '',
+      wa_sent_at: r[25] || ''
+    });
+
     const dateTransactions = transaksiRows
       .filter(r => r[5] === queryTanggal && targetWhIds.includes(r[2]))
-      .map(r => ({
-        transaction_id: r[0],
-        warehouse_id: r[2],
-        warehouse_code: r[3] || '',
-        warehouse_name: r[4] || '',
-        tanggal: r[5],
-        location_id: r[7],
-        location_name: r[8],
-        period_id: r[9],
-        period_label: r[10],
-        suhu: parseFloat(r[11] || '0'),
-        max_limit_snapshot: parseFloat(r[12] || '30'),
-        status_suhu: (r[13] || 'NORMAL') as 'NORMAL' | 'MELEBIHI_BATAS',
-        user_id: r[14],
-        petugas_name: r[15],
-        server_received_at: r[17],
-        drive_file_id: r[19],
-        drive_file_name: r[20],
-        drive_view_url: r[21],
-        wa_notif_status: r[23] || 'NOT_REQUIRED',
-        wa_error_message: r[24] || '',
-        wa_sent_at: r[25] || ''
-      }));
+      .map(mapTxRow);
+
+    // Recent activity feed with fallback to latest warehouse transactions if 0 for today
+    let recentTransactions = [...dateTransactions].reverse();
+    let isHistoricalFallback = false;
+    if (recentTransactions.length === 0) {
+      const historicalRows = transaksiRows
+        .filter(r => r[0] && targetWhIds.includes(r[2]))
+        .slice(-10)
+        .reverse()
+        .map(mapTxRow);
+      if (historicalRows.length > 0) {
+        recentTransactions = historicalRows;
+        isHistoricalFallback = true;
+      }
+    }
 
     // Calculate Summary Metrics per Warehouse (Fitur 4)
     const warehousesSummary = allowedWarehouses.map(wh => {
@@ -263,7 +280,8 @@ export async function GET(req: NextRequest) {
         minTemp: minTempItem,
         avgTemp
       },
-      recentTransactions: [...dateTransactions].reverse()
+      recentTransactions,
+      is_recent_fallback: isHistoricalFallback
     });
   } catch (error: any) {
     console.error('Error in GET /api/dashboard:', error);

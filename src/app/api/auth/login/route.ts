@@ -114,18 +114,22 @@ export async function POST(req: NextRequest) {
     const token = await createSessionToken(sessionPayload);
     setSessionCookie(token);
 
-    // Record audit log for login
-    await recordAuditLog({
-      actor_user_id: user_id,
-      actor_username: stored_username,
-      actor_role: role as 'ADMIN' | 'MEMBER',
-      action_category: 'AUTH_LOGIN',
-      warehouse_id: active_warehouse_id || 'GLOBAL',
-      target_reference: user_id,
-      notes_or_reason: isDefaultAdminPassword
-        ? 'Login berhasil (Wajib ganti password aktif).'
-        : `Login berhasil (Warehouse aktif: ${active_warehouse_id}).`
-    });
+    // Record audit log for login (non-fatal if Sheets rate-limited)
+    try {
+      await recordAuditLog({
+        actor_user_id: user_id,
+        actor_username: stored_username,
+        actor_role: role as 'ADMIN' | 'MEMBER',
+        action_category: 'AUTH_LOGIN',
+        warehouse_id: active_warehouse_id || 'GLOBAL',
+        target_reference: user_id,
+        notes_or_reason: isDefaultAdminPassword
+          ? 'Login berhasil (Wajib ganti password aktif).'
+          : `Login berhasil (Warehouse aktif: ${active_warehouse_id}).`
+      });
+    } catch (auditErr) {
+      console.warn('Non-fatal: Failed to append login audit log:', auditErr);
+    }
 
     return NextResponse.json({
       user: {

@@ -132,6 +132,11 @@ export function AppHeader({ user }: AppHeaderProps) {
               </div>
               <div style={{ fontSize: '11px', color: '#86868B', marginTop: '1px' }}>
                 {activeWarehouse ? `${activeWarehouse.warehouse_code} — ${activeWarehouse.warehouse_name}` : 'Monitoring Cold Chain'}
+                {user?.role === 'ADMIN' && (
+                  <span style={{ marginLeft: '6px', fontSize: '10.5px', color: '#0071E3', fontWeight: 600 }}>
+                    • All Warehouses
+                  </span>
+                )}
               </div>
             </div>
           </Link>

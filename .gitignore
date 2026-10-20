@@ -21,8 +21,11 @@ out/
 
 # Agent & Temp Files
 .agents/
+scratch/
 File - *
 *.webp
+*.jpeg
+*.pdf
 
 # Vercel
 .vercel

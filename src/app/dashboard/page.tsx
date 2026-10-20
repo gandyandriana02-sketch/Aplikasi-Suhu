@@ -99,12 +99,14 @@ interface DashboardData {
     avgTemp: number | null;
   };
   recentTransactions: DashboardTransaction[];
+  is_recent_fallback?: boolean;
 }
 
 export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('all');
   const [selectedTx, setSelectedTx] = useState<DashboardTransaction | null>(null);
@@ -125,6 +127,7 @@ export default function DashboardPage() {
 
   async function loadDashboard(dateToFetch?: string, whId?: string) {
     setLoading(true);
+    setLoadError(null);
     try {
       const qDate = dateToFetch || selectedDate;
       const qWh = whId !== undefined ? whId : selectedWarehouseId;
@@ -138,7 +141,10 @@ export default function DashboardPage() {
         router.push('/login');
         return;
       }
-      if (!res.ok) throw new Error('Gagal memuat data dashboard');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error || 'Gagal memuat data dashboard');
+      }
 
       const json: DashboardData = await res.json();
       setData(json);
@@ -146,8 +152,9 @@ export default function DashboardPage() {
       if (whId === undefined && json.warehouse_id) {
         setSelectedWarehouseId(json.warehouse_id);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Dashboard load error:', err);
+      setLoadError(err.message || 'Gagal memuat data dashboard.');
     } finally {
       setLoading(false);
     }
@@ -209,10 +216,10 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
             <div>
               <span style={{ fontSize: '11px', fontWeight: 700, color: '#86868B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Dashboard Pemantauan Suhu
+                Dashboard Pemantauan Suhu {data?.is_consolidated ? '• All Warehouses' : ''}
               </span>
               <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#1D1D1F', margin: '2px 0 0 0', letterSpacing: '-0.3px' }}>
-                {data ? formatDateIndonesian(selectedDate) : 'Memuat data...'}
+                {data ? formatDateIndonesian(selectedDate) : loading ? 'Memuat data...' : 'Dashboard Operasional'}
               </h1>
             </div>
 
@@ -273,7 +280,7 @@ export default function DashboardPage() {
                   transition: 'all 0.15s ease'
                 }}
               >
-                Semua Gudang (Konsolidasi)
+                Semua Gudang (Konsolidasi) • All Warehouses
               </button>
 
               {data.allowed_warehouses.map((wh) => (
@@ -308,6 +315,47 @@ export default function DashboardPage() {
               @keyframes spin { to { transform: rotate(360deg); } }
             `}</style>
           </div>
+        ) : loadError && !data ? (
+          <div
+            role="alert"
+            style={{
+              textAlign: 'center',
+              padding: '40px 24px',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '24px',
+              border: '1px solid #FEE2E2',
+              boxShadow: '0 4px 20px rgba(239, 68, 68, 0.08)',
+              margin: '20px auto',
+              maxWidth: '480px'
+            }}
+          >
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#FEE2E2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', fontSize: '20px', fontWeight: 800 }}>
+              !
+            </div>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1D1D1F', marginBottom: '8px' }}>
+              Gagal Memuat Data Operasional
+            </h3>
+            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '20px' }}>
+              {loadError}
+            </p>
+            <button
+              type="button"
+              onClick={() => loadDashboard()}
+              style={{
+                backgroundColor: '#0071E3',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '10px 24px',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0, 113, 227, 0.25)'
+              }}
+            >
+              Coba Lagi
+            </button>
+          </div>
         ) : data ? (
           (() => {
             const maxTempLimit = data.settings?.max_temp_limit ?? 25.0;
@@ -331,7 +379,7 @@ export default function DashboardPage() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '11px', fontWeight: 600, color: '#86868B', textTransform: 'uppercase' }}>
-                    Kelengkapan Slot
+                    Kelengkapan Slot (Completion)
                   </span>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#86868B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M12 20v-6M6 20V10M18 20V4"/>
@@ -507,8 +555,137 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            {/* 2. Interactive 2D Slot Matrix (Titik Lokasi × Jadwal Shift) */}
-            {!data.is_consolidated && (
+            {/* 2. Consolidated Warehouses Breakdown vs Interactive 2D Slot Matrix */}
+            {data.is_consolidated ? (
+              <section
+                data-testid="consolidated-warehouses-section"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '24px',
+                  border: '1px solid rgba(0,0,0,0.06)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                  overflow: 'hidden',
+                  marginBottom: '24px'
+                }}
+              >
+                <div
+                  style={{
+                    padding: '16px 20px',
+                    borderBottom: '1px solid rgba(0,0,0,0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '10px'
+                  }}
+                >
+                  <div>
+                    <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#1D1D1F', margin: 0 }}>
+                      Ringkasan Konsolidasi Antargudang (All Warehouses Consolidated Summary)
+                    </h2>
+                    <span style={{ fontSize: '11px', color: '#86868B' }}>
+                      Status operasional dan kelengkapan (completion metrics) seluruh gudang aktif
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#0071E3', backgroundColor: '#E0F2FE', padding: '3px 10px', borderRadius: '12px' }}>
+                    {data.warehouses_summary?.length || 0} Gudang Aktif
+                  </span>
+                </div>
+
+                <div className="no-scrollbar" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700, fontSize: '12px' }}>
+                        <th style={{ padding: '12px 16px' }}>Gudang / Warehouse</th>
+                        <th style={{ padding: '12px 14px', textAlign: 'center' }}>Kelengkapan (Completion)</th>
+                        <th style={{ padding: '12px 14px', textAlign: 'center' }}>Rata-rata Suhu</th>
+                        <th style={{ padding: '12px 14px', textAlign: 'center' }}>Tertinggi / Terendah</th>
+                        <th style={{ padding: '12px 14px', textAlign: 'center' }}>Penyimpangan</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'right' }}>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.warehouses_summary && data.warehouses_summary.length > 0 ? (
+                        data.warehouses_summary.map((wh) => {
+                          const whPercent = wh.totalSlots > 0 ? Math.round((wh.filledSlots / wh.totalSlots) * 100) : 0;
+                          return (
+                            <tr key={wh.warehouse_id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                              <td style={{ padding: '14px 16px' }}>
+                                <div style={{ fontWeight: 700, color: '#1D1D1F' }}>
+                                  {wh.warehouse_code} — {wh.warehouse_name}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#86868B' }}>
+                                  ID: {wh.warehouse_id}
+                                </div>
+                              </td>
+                              <td style={{ padding: '14px', textAlign: 'center' }}>
+                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontWeight: 700, color: whPercent === 100 ? '#1D8338' : '#1D1D1F' }}>
+                                    {wh.filledSlots} / {wh.totalSlots} ({whPercent}%)
+                                  </span>
+                                  <div style={{ width: '80px', height: '5px', backgroundColor: '#F1F5F9', borderRadius: '3px', overflow: 'hidden' }}>
+                                    <div style={{ width: `${whPercent}%`, height: '100%', backgroundColor: whPercent === 100 ? '#34C759' : '#0071E3', borderRadius: '3px' }} />
+                                  </div>
+                                </div>
+                              </td>
+                              <td style={{ padding: '14px', textAlign: 'center', fontWeight: 600, color: '#1D1D1F' }}>
+                                {wh.avgTemp !== null ? `${wh.avgTemp.toFixed(1).replace('.', ',')}°C` : '–'}
+                              </td>
+                              <td style={{ padding: '14px', textAlign: 'center', fontSize: '12px' }}>
+                                <div>
+                                  <span style={{ color: '#FF3B30', fontWeight: 600 }}>
+                                    ▲ {wh.maxTemp ? `${wh.maxTemp.suhu.toFixed(1).replace('.', ',')}°C` : '–'}
+                                  </span>
+                                  {' / '}
+                                  <span style={{ color: '#0071E3', fontWeight: 600 }}>
+                                    ▼ {wh.minTemp ? `${wh.minTemp.suhu.toFixed(1).replace('.', ',')}°C` : '–'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '14px', textAlign: 'center' }}>
+                                {wh.overlimitCount > 0 ? (
+                                  <span style={{ backgroundColor: '#FEECEB', color: '#FF3B30', padding: '3px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700 }}>
+                                    {wh.overlimitCount} Overlimit
+                                  </span>
+                                ) : (
+                                  <span style={{ backgroundColor: '#E8F8EE', color: '#1D8338', padding: '3px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700 }}>
+                                    Aman (0)
+                                  </span>
+                                )}
+                              </td>
+                              <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleWarehouseFilter(wh.warehouse_id)}
+                                  style={{
+                                    backgroundColor: '#F5F5F7',
+                                    color: '#0071E3',
+                                    border: 'none',
+                                    borderRadius: '10px',
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Buka Matriks →
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: '#86868B' }}>
+                            Belum ada ringkasan gudang yang tersedia.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ) : (
               <section
                 style={{
                   backgroundColor: '#FFFFFF',
@@ -648,13 +825,15 @@ export default function DashboardPage() {
                   Feed Transaksi Terkini
                 </h2>
                 <span style={{ fontSize: '11px', color: '#86868B' }}>
-                  {data.recentTransactions.length} transaksi hari ini
+                  {data.recentTransactions.length > 0 && data.is_recent_fallback
+                    ? `${data.recentTransactions.length} aktivitas terbaru (${data.is_consolidated ? 'Semua Gudang' : data.active_warehouse?.warehouse_name || 'Warehouse'})`
+                    : `${data.recentTransactions.length} transaksi hari ini`}
                 </span>
               </div>
 
               {data.recentTransactions.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px 0', color: '#86868B', fontSize: '13px' }}>
-                  Belum ada transaksi suhu yang tersimpan pada tanggal ini.
+                  Belum ada transaksi suhu yang tersimpan untuk {data.is_consolidated ? 'seluruh gudang' : data.active_warehouse?.warehouse_name || 'warehouse ini'}.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -696,10 +875,10 @@ export default function DashboardPage() {
                           </div>
                           <div>
                             <div style={{ fontSize: '13px', fontWeight: 700, color: '#1D1D1F' }}>
-                              {tx.location_name} • {tx.period_label}
+                              {tx.warehouse_code ? `${tx.warehouse_code} • ` : ''}{tx.location_name} • {tx.period_label}
                             </div>
                             <div style={{ fontSize: '11px', color: '#64748B' }}>
-                              Oleh {tx.petugas_name} • {tx.server_received_at?.split(' ')[1] || ''} WIB
+                              Oleh {tx.petugas_name} • {tx.tanggal} {tx.server_received_at?.split(' ')[1] || ''} WIB
                             </div>
                           </div>
                         </div>

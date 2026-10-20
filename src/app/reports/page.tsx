@@ -121,6 +121,23 @@ export default function MonthlyReportPage() {
     dateStr: string;
   } | null>(null);
 
+  // Visible export notifications (PDF, Excel, CSV)
+  const [exportNotification, setExportNotification] = useState<{
+    type: 'pdf' | 'excel' | 'csv';
+    status: 'loading' | 'success' | 'error';
+    title: string;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (exportNotification && exportNotification.status === 'success') {
+      const timer = setTimeout(() => {
+        setExportNotification(null);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [exportNotification]);
+
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
@@ -186,135 +203,198 @@ export default function MonthlyReportPage() {
   }, [selectedYear, selectedMonth]);
 
   function handlePrint() {
-    window.print();
+    setExportNotification({
+      type: 'pdf',
+      status: 'success',
+      title: 'Ekspor PDF Berhasil Dimulai',
+      message: `Pratinjau cetak PDF (A4) untuk ${data?.active_warehouse?.warehouse_name || 'warehouse aktif'} siap dicetak atau disimpan sebagai PDF.`
+    });
+    setTimeout(() => {
+      try {
+        window.print();
+      } catch (err) {
+        console.warn('window.print error:', err);
+      }
+    }, 250);
   }
 
   function handleExportExcel() {
     if (!data) return;
 
-    const wb = XLSX.utils.book_new();
-    const whTitle = `${data.active_warehouse?.warehouse_code || 'WH'} — ${data.active_warehouse?.warehouse_name || 'Warehouse'}`;
+    setExportNotification({
+      type: 'excel',
+      status: 'loading',
+      title: 'Menyiapkan Ekspor Excel...',
+      message: 'Menghasilkan berkas spreadsheet .xlsx rekapan bulanan...'
+    });
 
-    // Worksheet 1: Matriks Bulanan
-    const matrixRows: any[][] = [
-      ['Warehouse:', whTitle],
-      ['Periode:', `${MONTH_NAMES_INDONESIA[data.month - 1]} ${data.year}`],
-      ['Batas Maksimal:', `${data.settings.max_temp_limit || 25}°C`],
-      []
-    ];
+    setTimeout(() => {
+      try {
+        const wb = XLSX.utils.book_new();
+        const whTitle = `${data.active_warehouse?.warehouse_code || 'WH'} — ${data.active_warehouse?.warehouse_name || 'Warehouse'}`;
 
-    const matrixHeaders = ['No', 'Titik Lokasi', 'Periode Check'];
-    for (let d = 1; d <= data.daysInMonth; d++) {
-      matrixHeaders.push(String(d));
-    }
-    matrixHeaders.push('Min', 'Max');
-    matrixRows.push(matrixHeaders);
+        // Worksheet 1: Matriks Bulanan
+        const matrixRows: any[][] = [
+          ['Warehouse:', whTitle],
+          ['Periode:', `${MONTH_NAMES_INDONESIA[data.month - 1]} ${data.year}`],
+          ['Batas Maksimal:', `${data.settings.max_temp_limit || 25}°C`],
+          []
+        ];
 
-    let rowNum = 1;
-    data.matrix.forEach((prd) => {
-      prd.locationRows.forEach((loc) => {
-        const rowTemps: number[] = [];
-        const row: any[] = [rowNum++, loc.location_name, prd.period_label];
-        loc.days.forEach((dayCell) => {
-          if (dayCell.has_data && dayCell.suhu !== undefined) {
-            row.push(dayCell.suhu);
-            rowTemps.push(dayCell.suhu);
-          } else {
-            // BR-09: Unfilled slot remains empty, NOT 0
-            row.push('');
-          }
-        });
-        if (rowTemps.length > 0) {
-          row.push(Math.min(...rowTemps));
-          row.push(Math.max(...rowTemps));
-        } else {
-          row.push('', '');
+        const matrixHeaders = ['No', 'Titik Lokasi', 'Periode Check'];
+        for (let d = 1; d <= data.daysInMonth; d++) {
+          matrixHeaders.push(String(d));
         }
-        matrixRows.push(row);
-      });
-    });
+        matrixHeaders.push('Min', 'Max');
+        matrixRows.push(matrixHeaders);
 
-    const wsMatrix = XLSX.utils.aoa_to_sheet(matrixRows);
-    XLSX.utils.book_append_sheet(wb, wsMatrix, 'Matriks Bulanan');
+        let rowNum = 1;
+        data.matrix.forEach((prd) => {
+          prd.locationRows.forEach((loc) => {
+            const rowTemps: number[] = [];
+            const row: any[] = [rowNum++, loc.location_name, prd.period_label];
+            loc.days.forEach((dayCell) => {
+              if (dayCell.has_data && dayCell.suhu !== undefined) {
+                row.push(dayCell.suhu);
+                rowTemps.push(dayCell.suhu);
+              } else {
+                // BR-09: Unfilled slot remains empty, NOT 0
+                row.push('');
+              }
+            });
+            if (rowTemps.length > 0) {
+              row.push(Math.min(...rowTemps));
+              row.push(Math.max(...rowTemps));
+            } else {
+              row.push('', '');
+            }
+            matrixRows.push(row);
+          });
+        });
 
-    // Worksheet 2: Detail Transaksi
-    const detailHeaders = [
-      'Warehouse',
-      'Tanggal',
-      'Jadwal',
-      'Lokasi',
-      'Suhu (°C)',
-      'Status Suhu',
-      'Petugas',
-      'Waktu Server',
-      'Status WA',
-      'Tautan Foto Google Drive'
-    ];
+        const wsMatrix = XLSX.utils.aoa_to_sheet(matrixRows);
+        XLSX.utils.book_append_sheet(wb, wsMatrix, 'Matriks Bulanan');
 
-    const detailRows: any[][] = [detailHeaders];
-    data.allTransactions.forEach((tx) => {
-      detailRows.push([
-        whTitle,
-        tx.tanggal,
-        tx.period_label,
-        tx.location_name,
-        tx.suhu,
-        tx.status_suhu,
-        tx.petugas_name,
-        tx.server_received_at,
-        tx.wa_notif_status,
-        tx.drive_view_url
-      ]);
-    });
+        // Worksheet 2: Detail Transaksi
+        const detailHeaders = [
+          'Warehouse',
+          'Tanggal',
+          'Jadwal',
+          'Lokasi',
+          'Suhu (°C)',
+          'Status Suhu',
+          'Petugas',
+          'Waktu Server',
+          'Status WA',
+          'Tautan Foto Google Drive'
+        ];
 
-    const wsDetail = XLSX.utils.aoa_to_sheet(detailRows);
-    XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail Transaksi');
+        const detailRows: any[][] = [detailHeaders];
+        data.allTransactions.forEach((tx) => {
+          detailRows.push([
+            whTitle,
+            tx.tanggal,
+            tx.period_label,
+            tx.location_name,
+            tx.suhu,
+            tx.status_suhu,
+            tx.petugas_name,
+            tx.server_received_at,
+            tx.wa_notif_status,
+            tx.drive_view_url
+          ]);
+        });
 
-    const fileName = `Rekap_Suhu_${data.active_warehouse?.warehouse_code || 'WH'}_${MONTH_NAMES_INDONESIA[data.month - 1]}_${data.year}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+        const wsDetail = XLSX.utils.aoa_to_sheet(detailRows);
+        XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail Transaksi');
+
+        const fileName = `Rekap_Suhu_${data.active_warehouse?.warehouse_code || 'WH'}_${MONTH_NAMES_INDONESIA[data.month - 1]}_${data.year}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+
+        setExportNotification({
+          type: 'excel',
+          status: 'success',
+          title: 'Berkas Excel Berhasil Diunduh',
+          message: `Berkas ${fileName} berhasil diunduh ke perangkat Anda.`
+        });
+      } catch (err: any) {
+        setExportNotification({
+          type: 'excel',
+          status: 'error',
+          title: 'Ekspor Excel Gagal',
+          message: err?.message || 'Terjadi kesalahan saat mengekspor Excel.'
+        });
+      }
+    }, 150);
   }
 
   function handleExportCsv() {
     if (!data) return;
 
-    const whTitle = `${data.active_warehouse?.warehouse_code || 'WH'} — ${data.active_warehouse?.warehouse_name || 'Warehouse'}`;
-    const detailHeaders = [
-      'Warehouse',
-      'Tanggal',
-      'Jadwal',
-      'Lokasi',
-      'Suhu (°C)',
-      'Status Suhu',
-      'Petugas',
-      'Waktu Server',
-      'Status WA',
-      'Tautan Foto Google Drive'
-    ];
-
-    const rows = [detailHeaders.join(',')];
-    data.allTransactions.forEach((tx) => {
-      const row = [
-        `"${whTitle}"`,
-        `"${tx.tanggal}"`,
-        `"${tx.period_label}"`,
-        `"${tx.location_name}"`,
-        tx.suhu,
-        `"${tx.status_suhu}"`,
-        `"${tx.petugas_name}"`,
-        `"${tx.server_received_at}"`,
-        `"${tx.wa_notif_status}"`,
-        `"${tx.drive_view_url}"`
-      ];
-      rows.push(row.join(','));
+    setExportNotification({
+      type: 'csv',
+      status: 'loading',
+      title: 'Menyiapkan Ekspor CSV...',
+      message: 'Menghasilkan berkas CSV...'
     });
 
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Detail_Suhu_${data.active_warehouse?.warehouse_code || 'WH'}_${MONTH_NAMES_INDONESIA[data.month - 1]}_${data.year}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      try {
+        const whTitle = `${data.active_warehouse?.warehouse_code || 'WH'} — ${data.active_warehouse?.warehouse_name || 'Warehouse'}`;
+        const detailHeaders = [
+          'Warehouse',
+          'Tanggal',
+          'Jadwal',
+          'Lokasi',
+          'Suhu (°C)',
+          'Status Suhu',
+          'Petugas',
+          'Waktu Server',
+          'Status WA',
+          'Tautan Foto Google Drive'
+        ];
+
+        const rows = [detailHeaders.join(',')];
+        data.allTransactions.forEach((tx) => {
+          const row = [
+            `"${whTitle}"`,
+            `"${tx.tanggal}"`,
+            `"${tx.period_label}"`,
+            `"${tx.location_name}"`,
+            tx.suhu,
+            `"${tx.status_suhu}"`,
+            `"${tx.petugas_name}"`,
+            `"${tx.server_received_at}"`,
+            `"${tx.wa_notif_status}"`,
+            `"${tx.drive_view_url}"`
+          ];
+          rows.push(row.join(','));
+        });
+
+        const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const fileName = `Detail_Suhu_${data.active_warehouse?.warehouse_code || 'WH'}_${MONTH_NAMES_INDONESIA[data.month - 1]}_${data.year}.csv`;
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        setExportNotification({
+          type: 'csv',
+          status: 'success',
+          title: 'Berkas CSV Berhasil Diunduh',
+          message: `Berkas ${fileName} berhasil diunduh ke perangkat Anda.`
+        });
+      } catch (err: any) {
+        setExportNotification({
+          type: 'csv',
+          status: 'error',
+          title: 'Ekspor CSV Gagal',
+          message: err?.message || 'Terjadi kesalahan saat mengekspor CSV.'
+        });
+      }
+    }, 150);
   }
 
   const years = [2025, 2026, 2027, 2028];
@@ -347,6 +427,73 @@ export default function MonthlyReportPage() {
       <div className="rekap-viewport-container mode-desktop apple-view-enter">
         <div className="rekap-main-paper">
           
+          {/* Visible Export Status Toast / Alert Banner (A4 Print Hidden) */}
+          {exportNotification && (
+            <div
+              role="status"
+              aria-live="polite"
+              data-testid="export-notification"
+              className="no-print"
+              style={{
+                marginBottom: '16px',
+                padding: '12px 18px',
+                borderRadius: '16px',
+                backgroundColor: exportNotification.status === 'error' ? '#FEE2E2' : '#F0FDF4',
+                border: `1px solid ${exportNotification.status === 'error' ? '#FCA5A5' : '#86EFAC'}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.05)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: exportNotification.status === 'error' ? '#EF4444' : exportNotification.status === 'loading' ? '#0071E3' : '#16A34A',
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    fontWeight: 700
+                  }}
+                >
+                  {exportNotification.status === 'loading' ? '⋯' : exportNotification.status === 'error' ? '!' : '✓'}
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: exportNotification.status === 'error' ? '#991B1B' : '#14532D' }}>
+                    {exportNotification.title}
+                  </div>
+                  <div style={{ fontSize: '12px', color: exportNotification.status === 'error' ? '#B91C1C' : '#166534', marginTop: '1px' }}>
+                    {exportNotification.message}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setExportNotification(null)}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: exportNotification.status === 'error' ? '#991B1B' : '#14532D',
+                  fontSize: '20px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '2px 8px',
+                  lineHeight: 1
+                }}
+                aria-label="Tutup notifikasi"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           {/* =========================================================================
               HEADER & ACTION CONTROLS (DESKTOP / PRINT DUAL MODE)
               ========================================================================= */}

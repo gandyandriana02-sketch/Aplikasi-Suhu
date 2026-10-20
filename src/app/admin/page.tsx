@@ -1939,6 +1939,8 @@ function AdminPageContent() {
                         <option value="TX_UPDATE">Revisi Transaksi (TX_UPDATE)</option>
                         <option value="USER_MGMT">Manajemen User (USER_MGMT)</option>
                         <option value="MASTER_MGMT">Master Data (MASTER_MGMT)</option>
+                        <option value="WH_MGMT">Warehouse (WH_MGMT)</option>
+                        <option value="WH_ACCESS_MGMT">Akses Warehouse (WH_ACCESS_MGMT)</option>
                         <option value="SETTING_CHANGE">Pengaturan (SETTING_CHANGE)</option>
                         <option value="WA_RETRY">Retry WhatsApp (WA_RETRY)</option>
                       </select>

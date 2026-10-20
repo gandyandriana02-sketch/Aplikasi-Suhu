@@ -6,6 +6,36 @@ const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+async function fetchSheetsWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3
+): Promise<Response> {
+  let attempt = 0;
+  while (true) {
+    try {
+      const res = await fetch(url, options);
+      if ((res.status === 429 || res.status === 503) && attempt < maxRetries) {
+        attempt++;
+        const backoff = Math.min(3000, Math.floor(500 * Math.pow(2.2, attempt - 1)) + Math.floor(Math.random() * 200));
+        console.warn(`[Google Sheets] Rate limit/service unavailable (${res.status}). Retrying in ${backoff}ms (attempt ${attempt}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      if (attempt < maxRetries) {
+        attempt++;
+        const backoff = Math.min(3000, 600 * attempt);
+        console.warn(`[Google Sheets] Network fetch error: ${err}. Retrying in ${backoff}ms (attempt ${attempt}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 export async function getGoogleAccessToken(): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   if (cachedToken && cachedToken.expiresAt > now + 300) {
@@ -59,7 +89,7 @@ export async function getGoogleAccessToken(): Promise<string> {
 export async function getSpreadsheetMetadata() {
   if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not configured');
   const token = await getGoogleAccessToken();
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets.properties`, {
+  const res = await fetchSheetsWithRetry(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets.properties`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 
@@ -77,6 +107,7 @@ interface CacheEntry<T> {
 }
 
 const cacheStore = new Map<string, CacheEntry<any>>();
+const staleStore = new Map<string, any>();
 
 export function clearSheetCache() {
   cacheStore.clear();
@@ -86,7 +117,7 @@ export async function batchUpdateSpreadsheet(requests: any[]) {
   if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not configured');
   clearSheetCache();
   const token = await getGoogleAccessToken();
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
+  const res = await fetchSheetsWithRetry(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -114,18 +145,23 @@ export async function getSheetValues(range: string): Promise<any[][]> {
 
   const token = await getGoogleAccessToken();
   const encodedRange = encodeURIComponent(range);
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodedRange}`, {
+  const res = await fetchSheetsWithRetry(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodedRange}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 
   if (!res.ok) {
     const errorText = await res.text();
+    if ((res.status === 429 || res.status >= 500) && staleStore.has(cacheKey)) {
+      console.warn(`[Google Sheets] Rate limit/error ${res.status} on ${range}, serving stale cached data.`);
+      return staleStore.get(cacheKey);
+    }
     throw new Error(`Failed to read sheet values for ${range}: ${errorText}`);
   }
 
   const data = await res.json();
   const values = data.values || [];
   cacheStore.set(cacheKey, { data: values, expiresAt: now + 10000 }); // 10s TTL
+  staleStore.set(cacheKey, values);
   return values;
 }
 
@@ -140,12 +176,16 @@ export async function batchGetSheetValues(ranges: string[]): Promise<{ range: st
 
   const token = await getGoogleAccessToken();
   const query = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&');
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?${query}`, {
+  const res = await fetchSheetsWithRetry(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?${query}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 
   if (!res.ok) {
     const errorText = await res.text();
+    if ((res.status === 429 || res.status >= 500) && staleStore.has(cacheKey)) {
+      console.warn(`[Google Sheets] Rate limit/error ${res.status} on batchGet, serving stale cached data.`);
+      return staleStore.get(cacheKey);
+    }
     throw new Error(`Failed batchGet: ${errorText}`);
   }
 
@@ -155,6 +195,7 @@ export async function batchGetSheetValues(ranges: string[]): Promise<{ range: st
     values: vr.values || []
   }));
   cacheStore.set(cacheKey, { data: result, expiresAt: now + 10000 }); // 10s TTL
+  staleStore.set(cacheKey, result);
   return result;
 }
 
@@ -163,7 +204,7 @@ export async function appendSheetValues(range: string, values: any[][], valueInp
   clearSheetCache();
   const token = await getGoogleAccessToken();
   const encodedRange = encodeURIComponent(range);
-  const res = await fetch(
+  const res = await fetchSheetsWithRetry(
     `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodedRange}:append?valueInputOption=${valueInputOption}&insertDataOption=INSERT_ROWS`,
     {
       method: 'POST',
@@ -188,7 +229,7 @@ export async function updateSheetValues(range: string, values: any[][], valueInp
   clearSheetCache();
   const token = await getGoogleAccessToken();
   const encodedRange = encodeURIComponent(range);
-  const res = await fetch(
+  const res = await fetchSheetsWithRetry(
     `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodedRange}?valueInputOption=${valueInputOption}`,
     {
       method: 'PUT',
@@ -213,7 +254,7 @@ export async function clearSheetRange(range: string) {
   clearSheetCache();
   const token = await getGoogleAccessToken();
   const encodedRange = encodeURIComponent(range);
-  const res = await fetch(
+  const res = await fetchSheetsWithRetry(
     `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodedRange}:clear`,
     {
       method: 'POST',

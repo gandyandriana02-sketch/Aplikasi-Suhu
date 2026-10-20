@@ -254,6 +254,17 @@ export async function POST(req: NextRequest) {
       notes_or_reason: 'Inisialisasi 8 sheet database berhasil dilakukan.'
     });
 
+    await recordAuditLog({
+      actor_user_id: 'SYSTEM',
+      actor_username: 'SYSTEM',
+      actor_role: 'ADMIN',
+      action_category: 'MASTER_MGMT',
+      warehouse_id: 'WH-001',
+      target_reference: 'INIT_WAREHOUSE_MASTER',
+      after_value: { warehouse_code: 'CK01', warehouse_name: 'Cikupa 1' },
+      notes_or_reason: 'Inisialisasi master data warehouse perdana (Cikupa 1).'
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Inisialisasi sistem berhasil. Mohon segera hapus SETUP_KEY dari Vercel Environment Variables.'
