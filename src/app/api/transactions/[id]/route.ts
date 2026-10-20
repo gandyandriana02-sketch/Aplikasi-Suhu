@@ -59,8 +59,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const sheetRowNum = rowIndex + 2;
 
     const warehouseId = existingRow[2] || 'WH-001';
-    const warehouseCode = existingRow[3] || 'CK01';
-    const warehouseName = existingRow[4] || 'Cikupa 1';
+    const warehouseCode = existingRow[3] || 'WH';
+    const warehouseName = existingRow[4] || 'Warehouse';
     const tanggal = existingRow[5];
     const locationName = existingRow[8];
     const periodLabel = existingRow[10];

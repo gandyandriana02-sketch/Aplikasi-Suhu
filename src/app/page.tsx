@@ -47,6 +47,7 @@ interface FormContextData {
     warehouse_code: string;
     warehouse_name: string;
   };
+  app_name?: string;
   locations: LocationItem[];
   periods: PeriodItem[];
   max_temp_limit: number;
@@ -1381,6 +1382,8 @@ export default function HomePage() {
           <CameraCaptureModal
             locationName={activeCameraLocation.name}
             petugasName={context.user.full_name}
+            brandName={context.app_name}
+            warehouseName={context.active_warehouse?.warehouse_name}
             onClose={() => setActiveCameraLocation(null)}
             onPhotoAccepted={(photo) => {
               setFormStates((prev) => ({

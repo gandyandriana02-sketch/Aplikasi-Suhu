@@ -76,8 +76,8 @@ export async function GET(req: NextRequest) {
       warehouse_name: currentWhRow[2]
     } : {
       warehouse_id: targetCanonical,
-      warehouse_code: 'CK1',
-      warehouse_name: 'Cikupa 1'
+      warehouse_code: whRows[0]?.[1] || 'WH',
+      warehouse_name: whRows[0]?.[2] || 'Warehouse'
     };
 
     // Parse active locations for this warehouse (r[1] = warehouse_id, r[4] = is_active)
@@ -172,6 +172,7 @@ export async function GET(req: NextRequest) {
         role: session.role
       },
       active_warehouse: currentWarehouse,
+      app_name: whSettings.app_name || 'Warehouse Temperature Report',
       locations,
       periods,
       max_temp_limit: maxTempLimit,

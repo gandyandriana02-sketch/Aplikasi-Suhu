@@ -238,10 +238,10 @@ export async function GET(req: NextRequest) {
     });
 
     // Active warehouse metadata
-    const activeWhMeta = allowedWarehouses.find(w => w.warehouse_id === displayWhId) || {
+    const activeWhMeta = allowedWarehouses.find(w => w.warehouse_id === displayWhId) || allowedWarehouses[0] || {
       warehouse_id: displayWhId,
-      warehouse_code: 'CK01',
-      warehouse_name: 'Cikupa 1'
+      warehouse_code: 'WH',
+      warehouse_name: 'Warehouse'
     };
 
     // Parse settings for display warehouse with strict hierarchical resolution

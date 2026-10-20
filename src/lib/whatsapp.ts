@@ -135,7 +135,7 @@ export function buildWhatsAppAlertMessage(params: WhatsAppAlertParams): string {
   const drivePhotoUrl = `https://drive.google.com/file/d/${params.driveFileId}/view`;
   const whLabel = params.warehouseCode && params.warehouseName
     ? `${params.warehouseCode} — ${params.warehouseName}`
-    : (params.warehouseName || params.warehouseCode || 'CK01 — Cikupa 1');
+    : (params.warehouseName || params.warehouseCode || 'Warehouse');
 
   return [
     '*PERINGATAN SUHU WAREHOUSE*',
@@ -171,7 +171,7 @@ export function buildWhatsAppBatchAlertMessage(params: WhatsAppBatchAlertParams)
 
   const whLabel = params.warehouseCode && params.warehouseName
     ? `${params.warehouseCode} — ${params.warehouseName}`
-    : (params.warehouseName || params.warehouseCode || 'CK01 — Cikupa 1');
+    : (params.warehouseName || params.warehouseCode || 'Warehouse');
 
   const lines: string[] = [
     '*PERINGATAN SUHU WAREHOUSE*',

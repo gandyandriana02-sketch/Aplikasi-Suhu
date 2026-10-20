@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
     let maxLimit = 30;
     const firstRow = matchedRows[0].row;
     const warehouseId = firstRow[2] || 'WH-001';
-    const warehouseCode = firstRow[3] || 'CK01';
-    const warehouseName = firstRow[4] || 'Cikupa 1';
+    const warehouseCode = firstRow[3] || 'WH';
+    const warehouseName = firstRow[4] || 'Warehouse';
 
     matchedRows.forEach(({ row }) => {
       // row[8]: location_name, row[10]: period_label, row[11]: suhu, row[12]: max_limit, row[19]: drive_file_id

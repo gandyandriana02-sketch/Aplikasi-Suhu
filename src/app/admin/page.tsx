@@ -236,9 +236,10 @@ function AdminPageContent() {
       const d = await res.json();
       if (d?.warehouses?.length > 0) {
         setWarehousesList(d.warehouses);
-        setSelectedMasterWhId((prev) => prev || d.warehouses[0].warehouse_id);
-        setSelectedSettingsWhId((prev) => prev || d.warehouses[0].warehouse_id);
-        setNewDefaultWhId((prev) => prev || d.warehouses[0].warehouse_id);
+        const firstWhId = d.warehouses[0].warehouse_id;
+        setSelectedMasterWhId((prev) => (d.warehouses.some((w: any) => w.warehouse_id === prev) ? prev : firstWhId));
+        setSelectedSettingsWhId((prev) => (d.warehouses.some((w: any) => w.warehouse_id === prev) ? prev : firstWhId));
+        setNewDefaultWhId((prev) => (d.warehouses.some((w: any) => w.warehouse_id === prev) ? prev : firstWhId));
       }
     } catch {}
   }

@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
     }
 
     const warehouseId = targetRow[2] || 'WH-001';
-    const warehouseCode = targetRow[3] || 'CK01';
-    const warehouseName = targetRow[4] || 'Cikupa 1';
+    const warehouseCode = targetRow[3] || 'WH';
+    const warehouseName = targetRow[4] || 'Warehouse';
     const tanggal = targetRow[5];
     const locationName = targetRow[8];
     const periodLabel = targetRow[10];

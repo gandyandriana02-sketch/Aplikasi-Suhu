@@ -71,8 +71,8 @@ export async function POST(req: NextRequest) {
 
     // Resolve warehouse snapshot
     const whRow = whRows.find(r => r[0] === warehouseId);
-    const warehouseCode = whRow ? whRow[1] : 'CK01';
-    const warehouseName = whRow ? whRow[2] : 'Cikupa 1';
+    const warehouseCode = whRow ? whRow[1] : (whRows[0]?.[1] || 'WH');
+    const warehouseName = whRow ? whRow[2] : (whRows[0]?.[2] || 'Warehouse');
     const warehouseFolderName = `${warehouseCode} — ${warehouseName}`;
 
     // Find location snapshot (r[0] = location_id, r[1] = warehouse_id, r[2] = location_name)

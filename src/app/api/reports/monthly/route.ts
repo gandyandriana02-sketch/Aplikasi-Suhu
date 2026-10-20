@@ -66,8 +66,8 @@ export async function GET(req: NextRequest) {
       warehouse_name: currentWhRow[2]
     } : {
       warehouse_id: warehouseId,
-      warehouse_code: 'CK01',
-      warehouse_name: 'Cikupa 1'
+      warehouse_code: whRows[0]?.[1] || 'WH',
+      warehouse_name: whRows[0]?.[2] || 'Warehouse'
     };
 
     // 2. Parse Settings for this warehouse with strict hierarchical resolution

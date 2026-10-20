@@ -12,6 +12,8 @@ export interface CapturedPhotoData {
 interface CameraCaptureModalProps {
   locationName: string;
   petugasName: string;
+  brandName?: string;
+  warehouseName?: string;
   onPhotoAccepted: (photo: CapturedPhotoData) => void;
   onClose: () => void;
 }
@@ -19,6 +21,8 @@ interface CameraCaptureModalProps {
 export default function CameraCaptureModal({
   locationName,
   petugasName,
+  brandName,
+  warehouseName,
   onPhotoAccepted,
   onClose
 }: CameraCaptureModalProps) {
@@ -337,7 +341,9 @@ export default function CameraCaptureModal({
     // Wrap address lines
     ctx.font = addressFont;
     const maxTextWidth = Math.min(targetWidth - padX * 2, Math.round(targetWidth * 0.90));
-    const fullAddress = activeAddress || 'Bitung Jaya, Cikupa, Kabupaten Tangerang, Banten 15710';
+    const fullAddress =
+      activeAddress ||
+      (warehouseName ? `Area ${warehouseName}` : (activeCoords ? `Koordinat: ${activeCoords}` : 'Area Warehouse'));
     const addressLines = wrapCanvasText(ctx, fullAddress, maxTextWidth);
 
     // Calculate vertical spacing
@@ -392,10 +398,13 @@ export default function CameraCaptureModal({
     ctx.shadowOffsetY = Math.round(1 * scale);
     ctx.textBaseline = 'top';
 
-    // (A) Logo sociolla
+    // (A) Dynamic Logo / Brand Name (SETTINGS.app_name with fallback)
     ctx.font = logoFont;
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText('sociolla', padX, currentY);
+    const displayBrand = (brandName && brandName.trim() && brandName.trim() !== 'Warehouse Temperature Report')
+      ? brandName.trim()
+      : 'sociolla';
+    ctx.fillText(displayBrand, padX, currentY);
     currentY += logoFontSize + gapLogoClock;
 
     // (B) Clock + Divider Bar + Date/Day
